@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="auth-shell">
+    <div class="auth-hero">
+      <span class="star s1"></span>
+      <span class="star s2"></span>
+      <span class="star s3"></span>
+      <span class="star s4"></span>
+      <span class="moon"></span>
+    </div>
+
+    <div class="auth-card">
+      <h1 class="auth-title">Login</h1>
+
+      <% if (typeof error !== "undefined" && error) { %>
+        <div class="flash"><%= error %></div>
+      <% } %>
+
+      <form method="POST" action="/login">
+        <div class="field">
+          <svg class="icon" viewBox="0 0 24 24" fill="none">
+            <path d="M20 21a8 8 0 10-16 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 13a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <input name="email" type="email" placeholder="Email" required />
+        </div>
+
+        <div class="field">
+          <svg class="icon" viewBox="0 0 24 24" fill="none">
+            <path d="M7 10V8a5 5 0 0110 0v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M6 10h12v10H6V10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+          <input name="password" type="password" placeholder="Senha" required />
+        </div>
+
+        <div class="row">
+          <label class="checkbox">
+            <input type="checkbox" name="remember" />
+            lembrar-me
+          </label>
+          <a href="#" onclick="alert('Depois a gente cria o recuperar senha 😉'); return false;">esqueci a senha</a>
+        </div>
+
+        <button class="btn" type="submit">Entrar</button>
+      </form>
+
+      <div class="small">
+        Acesso somente para funcionários
+      </div>
+    </div>
+  </div>
+</body>
+</html>
