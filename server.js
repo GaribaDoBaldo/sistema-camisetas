@@ -33,16 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
-app.get("/setup-db", async (req, res) => {
-  try {
-    const sql = fs.readFileSync("sql/schema.sql", "utf8");
-    await pool.query(sql);
-    res.send("✅ Banco configurado com sucesso! (Tabelas criadas)");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("❌ Erro ao configurar o banco: " + err.message);
-  }
-});
+
 app.get("/", (req, res) => {
   res.send("Sistema rodando 🚀");
 });
