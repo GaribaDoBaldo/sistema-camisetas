@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Painel do Admin</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .panel{ width:min(900px,100%); }
+    .topbar{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }
+    .card{ background:#111; border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:18px; box-shadow: var(--shadow); }
+    .grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-top:14px; }
+    .btn2{ display:inline-block; text-align:center; padding:12px 14px; border-radius:14px; background:#1a1a1a; border:1px solid rgba(239,68,68,.35); color:#fff; font-weight:800; text-decoration:none; }
+    .btn2:hover{ filter:brightness(1.05); }
+    .muted{ color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="topbar">
+      <div style="color:#fff; font-weight:900; font-size:18px;">Painel do Admin</div>
+      <div class="muted">Olá, <strong><%= user.name %></strong> • <a href="/logout">Sair</a></div>
+    </div>
+
+    <div class="card">
+      <div style="color:#fff; font-weight:900; font-size:20px;">Gestão do sistema</div>
+      <div class="muted" style="margin-top:6px;">Aqui você cria e gerencia os usuários (funcionários).</div>
+
+      <div class="grid">
+        <a class="btn2" href="/admin/users">📋 Listar usuários</a>
+        <a class="btn2" href="/admin/users/new">➕ Cadastrar funcionário</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
