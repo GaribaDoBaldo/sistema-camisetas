@@ -89,7 +89,7 @@ app.get("/logout", (req, res) => {
 
 // área do funcionário (protegida)
 app.get("/dashboard", requireAuth, (req, res) => {
-  res.send(`Olá, ${req.session.user.name}! ✅ Você está logado. <a href="/logout">Sair</a>`);
+  res.render("dashboard", { user: req.session.user });
 });
 
 // área do admin (protegida)
