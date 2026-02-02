@@ -23,6 +23,7 @@ app.use(
     cookie: {
       secure: true,
       sameSite: "lax",
+      httpOnly: true,
     },
   })
 );
@@ -33,6 +34,69 @@ app.use(express.static("public"));
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+// middleware: usuário logado?
+function requireAuth(req, res, next) {
+  if (!req.session.user) return res.redirect("/login");
+  next();
+}
+
+// tela de login
+app.get("/login", (req, res) => {
+  res.render("login", { error: null });
+});
+
+// login (POST)
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // busca usuário no banco
+    const result = await pool.query(
+      "SELECT id, name, email, password_hash, role FROM users WHERE email = $1 LIMIT 1",
+      [email]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(401).render("login", { error: "Email ou senha inválidos." });
+    }
+
+    const user = result.rows[0];
+
+    // compara senha
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
+      return res.status(401).render("login", { error: "Email ou senha inválidos." });
+    }
+
+    // salva na sessão (logado)
+    req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role };
+
+    // redireciona
+    if (user.role === "admin") return res.redirect("/admin");
+    return res.redirect("/dashboard");
+  } catch (err) {
+    console.error(err);
+    return res.status(500).render("login", { error: "Erro interno. Tente novamente." });
+  }
+});
+
+// logout
+app.get("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.redirect("/login");
+  });
+});
+
+// área do funcionário (protegida)
+app.get("/dashboard", requireAuth, (req, res) => {
+  res.send(`Olá, ${req.session.user.name}! ✅ Você está logado. <a href="/logout">Sair</a>`);
+});
+
+// área do admin (protegida)
+app.get("/admin", requireAuth, (req, res) => {
+  if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+  res.send(`Olá ADMIN ${req.session.user.name}! 🔐 <a href="/logout">Sair</a>`);
+});
 
 app.get("/login", (req, res) => {
   res.render("login", { error: null });
