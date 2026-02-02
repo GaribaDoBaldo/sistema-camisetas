@@ -42,7 +42,7 @@ body{
   background:
     radial-gradient(140px 140px at 75% 35%, rgba(255,255,255,.35), transparent 60%),
     radial-gradient(90px 90px at 62% 40%, rgba(255,255,255,.25), transparent 60%),
-    linear-gradient(135deg, #3b3f9b, #b03aa8);
+    linear-gradient(135deg, #7f1d1d, #ef4444);
 }
 .auth-hero::after{
   content:"";
