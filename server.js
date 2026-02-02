@@ -93,9 +93,51 @@ app.get("/dashboard", requireAuth, (req, res) => {
 });
 
 // área do admin (protegida)
+// área do admin (protegida)
 app.get("/admin", requireAuth, (req, res) => {
   if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
-  res.send(`Olá ADMIN ${req.session.user.name}! 🔐 <a href="/logout">Sair</a>`);
+  res.render("admin", { user: req.session.user });
+});
+
+// listar usuários
+app.get("/admin/users", requireAuth, async (req, res) => {
+  if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+  const result = await pool.query("SELECT id, name, email, role FROM users ORDER BY id ASC");
+  res.render("admin_users", { users: result.rows });
+});
+
+// formulário novo usuário
+app.get("/admin/users/new", requireAuth, (req, res) => {
+  if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+  res.render("admin_user_new", { error: null });
+});
+
+// criar usuário (POST)
+app.post("/admin/users", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const { name, email, password, role } = req.body;
+
+    // evita email repetido
+    const exists = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    if (exists.rowCount > 0) {
+      return res.status(400).render("admin_user_new", { error: "Esse email já está cadastrado." });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+
+    await pool.query(
+      "INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4)",
+      [name, email, password_hash, role || "employee"]
+    );
+
+    res.redirect("/admin/users");
+  } catch (err) {
+    console.error(err);
+    res.status(500).render("admin_user_new", { error: "Erro ao criar usuário." });
+  }
 });
 
 app.get("/login", (req, res) => {
