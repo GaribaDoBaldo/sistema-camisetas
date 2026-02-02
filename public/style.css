@@ -87,23 +87,6 @@ body{
   letter-spacing: .2px;
 }
 
-.field{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  background:#ffe6ee;
-  border: 1px solid rgba(255,107,139,.25);
-  padding: 10px 12px;
-  border-radius: 999px;
-  margin-bottom: 12px;
-}
-.field{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  background:#1a1a1a;
-  border: 1px solid rgba(225,29,72,.35);
-}
 .icon{
   width:18px;height:18px;
   opacity:.75;
