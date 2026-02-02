@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Usuários</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .panel{ width:min(900px,100%); }
+    .topbar{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }
+    .card{ background:#111; border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:18px; box-shadow: var(--shadow); }
+    table{ width:100%; border-collapse: collapse; margin-top:10px; }
+    th, td{ padding:10px; border-bottom:1px solid rgba(255,255,255,.08); text-align:left; color:#fff; }
+    th{ color:#cbd5e1; font-size:13px; }
+    .muted{ color: var(--muted); font-size: 13px; }
+    .btn2{ display:inline-block; text-align:center; padding:10px 12px; border-radius:12px; background:#1a1a1a; border:1px solid rgba(239,68,68,.35); color:#fff; font-weight:800; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="topbar">
+      <a class="btn2" href="/admin">⬅ Voltar</a>
+      <a class="btn2" href="/admin/users/new">➕ Novo</a>
+    </div>
+
+    <div class="card">
+      <div style="color:#fff; font-weight:900; font-size:20px;">Usuários</div>
+      <div class="muted">Admins e funcionários cadastrados.</div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Email</th>
+            <th>Cargo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% users.forEach(u => { %>
+            <tr>
+              <td><%= u.id %></td>
+              <td><%= u.name %></td>
+              <td><%= u.email %></td>
+              <td><%= u.role %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
