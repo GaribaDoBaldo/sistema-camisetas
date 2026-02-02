@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .wrap{ width:min(900px,100%); }
+    .topbar{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }
+    .card{ background:#111; border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:18px; box-shadow: var(--shadow); }
+    .grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-top:14px; }
+    .btn2{ display:inline-block; text-align:center; padding:12px 14px; border-radius:14px; background:#1a1a1a; border:1px solid rgba(239,68,68,.35); color:#fff; font-weight:800; text-decoration:none; }
+    .btn2:hover{ filter:brightness(1.05); }
+    .muted{ color: var(--muted); font-size: 13px; }
+    .badge{ display:inline-block; padding:6px 10px; border-radius:999px; background: rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.35); color:#fff; font-size:12px; font-weight:800; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <div style="color:#fff; font-weight:900; font-size:18px;">Dashboard</div>
+        <div class="muted">Bem-vindo, <strong><%= user.name %></strong></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="badge"><%= user.role === "admin" ? "ADMIN" : "FUNCIONÁRIO" %></span>
+        <a class="btn2" href="/logout">Sair</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="color:#fff; font-weight:900; font-size:20px;">Ações rápidas</div>
+      <div class="muted" style="margin-top:6px;">
+        <%= user.role === "admin"
+          ? "Você tem acesso de admin. Pode gerenciar usuários e o sistema."
+          : "Você está logado como funcionário. Use as opções abaixo."
+        %>
+      </div>
+
+      <div class="grid">
+        <% if (user.role === "admin") { %>
+          <a class="btn2" href="/admin">🔐 Painel do Admin</a>
+          <a class="btn2" href="/admin/users">👥 Gerenciar usuários</a>
+        <% } %>
+
+        <a class="btn2" href="#">📦 Estoque (em breve)</a>
+        <a class="btn2" href="#">🧾 Pedidos (em breve)</a>
+        <a class="btn2" href="#">👕 Camisetas (em breve)</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
