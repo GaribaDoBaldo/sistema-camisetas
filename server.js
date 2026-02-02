@@ -72,7 +72,6 @@ app.post("/login", async (req, res) => {
     req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role };
 
     // redireciona
-    if (user.role === "admin") return res.redirect("/admin");
     return res.redirect("/dashboard");
   } catch (err) {
     console.error(err);
