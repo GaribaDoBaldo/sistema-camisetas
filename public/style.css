@@ -158,3 +158,29 @@ a:hover{ text-decoration:underline; }
   color: #b91c1c;
   font-size: 13px;
 }
+/* ===== INPUT SEM CAIXA BRANCA ===== */
+.field{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #111111;
+  border-bottom: 2px solid rgba(239, 68, 68, 0.7);
+  padding: 12px 14px;
+  border-radius: 10px;
+}
+
+.field input{
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 15px;
+  width: 100%;
+}
+.field input::placeholder{
+  color: #9ca3af;
+}
+.field svg,
+.field i{
+  color: #ef4444;
+}
