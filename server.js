@@ -16,7 +16,7 @@ app.use(
       pool,
       tableName: "session",
     }),
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || "segredo-local",
     resave: false,
     saveUninitialized: false,
     cookie: {
