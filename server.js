@@ -138,65 +138,6 @@ app.post("/admin/users", requireAuth, async (req, res) => {
     res.status(500).render("admin_user_new", { error: "Erro ao criar usuário." });
   }
 });
-// ===============================
-// SETUP TEMPORÁRIO - ESTOQUE
-// ACESSAR UMA VEZ E DEPOIS APAGAR
-// ===============================
-app.get("/admin/setup-estoque", requireAuth, async (req, res) => {
-  try {
-    if (req.session.user.role !== "admin") {
-      return res.status(403).send("Acesso negado.");
-    }
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS products (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(120) NOT NULL,
-        description TEXT,
-        category VARCHAR(60),
-        active BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS product_variants (
-        id SERIAL PRIMARY KEY,
-        product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-        sku VARCHAR(60) UNIQUE,
-        color VARCHAR(40),
-        size VARCHAR(20),
-        price_cents INT NOT NULL DEFAULT 0,
-        stock INT NOT NULL DEFAULT 0,
-        min_stock INT NOT NULL DEFAULT 0,
-        active BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        CONSTRAINT uq_variant UNIQUE (product_id, color, size)
-      );
-
-      CREATE TABLE IF NOT EXISTS stock_movements (
-        id SERIAL PRIMARY KEY,
-        variant_id INT NOT NULL REFERENCES product_variants(id) ON DELETE CASCADE,
-        type VARCHAR(3) NOT NULL CHECK (type IN ('IN', 'OUT', 'ADJ')),
-        quantity INT NOT NULL CHECK (quantity > 0),
-        reason VARCHAR(120),
-        note TEXT,
-        created_by INT REFERENCES users(id),
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_variants_product_id ON product_variants(product_id);
-      CREATE INDEX IF NOT EXISTS idx_movements_variant_id ON stock_movements(variant_id);
-      CREATE INDEX IF NOT EXISTS idx_movements_created_at ON stock_movements(created_at);
-    `);
-
-    res.send("✅ Tabelas de estoque criadas com sucesso!");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("❌ Erro ao criar tabelas de estoque");
-  }
-});
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
