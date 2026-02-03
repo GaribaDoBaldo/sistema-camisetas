@@ -138,6 +138,38 @@ app.post("/admin/users", requireAuth, async (req, res) => {
     res.status(500).render("admin_user_new", { error: "Erro ao criar usuário." });
   }
 });
+// =========================
+// ESTOQUE (ADMIN) - LISTA
+// =========================
+app.get("/admin/estoque", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const productsResult = await pool.query(
+      `SELECT id, name, category, active
+       FROM products
+       ORDER BY id DESC`
+    );
+
+    const variantsResult = await pool.query(
+      `SELECT v.id, v.product_id, v.sku, v.color, v.size, v.price_cents, v.stock, v.min_stock, v.active,
+              p.name AS product_name
+       FROM product_variants v
+       JOIN products p ON p.id = v.product_id
+       ORDER BY v.id DESC`
+    );
+
+    res.render("admin_estoque_index", {
+      user: req.session.user,
+      products: productsResult.rows,
+      variants: variantsResult.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao carregar estoque.");
+  }
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
