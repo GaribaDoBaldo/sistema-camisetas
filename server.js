@@ -208,6 +208,66 @@ app.post("/admin/estoque/produto", requireAuth, async (req, res) => {
     res.status(500).send("Erro ao criar produto.");
   }
 });
+// =========================
+// ESTOQUE (ADMIN) - DETALHE DO PRODUTO + VARIAÇÕES
+// =========================
+app.get("/admin/estoque/produto/:id", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const productId = req.params.id;
+
+    const productResult = await pool.query("SELECT * FROM products WHERE id = $1", [productId]);
+    if (productResult.rowCount === 0) return res.status(404).send("Produto não encontrado.");
+
+    const variantsResult = await pool.query(
+      `SELECT * FROM product_variants
+       WHERE product_id = $1
+       ORDER BY id DESC`,
+      [productId]
+    );
+
+    res.render("admin_estoque_produto", {
+      user: req.session.user,
+      product: productResult.rows[0],
+      variants: variantsResult.rows,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao abrir produto.");
+  }
+});
+// =========================
+// ESTOQUE (ADMIN) - CRIAR VARIAÇÃO
+// =========================
+app.post("/admin/estoque/produto/:id/variacao", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const productId = req.params.id;
+    const { sku, color, size, price_cents, stock, min_stock } = req.body;
+
+    await pool.query(
+      `INSERT INTO product_variants (product_id, sku, color, size, price_cents, stock, min_stock)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        productId,
+        sku?.trim() || null,
+        color?.trim() || null,
+        size?.trim() || null,
+        Number(price_cents || 0),
+        Number(stock || 0),
+        Number(min_stock || 0),
+      ]
+    );
+
+    res.redirect(`/admin/estoque/produto/${productId}`);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao criar variação (talvez SKU duplicado ou cor+tamanho repetido).");
+  }
+});
 
 app.listen(PORT, () => {
   console.log("Servidor rodando na porta", PORT);
