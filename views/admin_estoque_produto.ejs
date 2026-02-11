@@ -74,7 +74,9 @@
         <td><%= v.color || "-" %></td>
         <td><%= v.size || "-" %></td>
         <td>R$ <%= ((Number(v.price_cents) || 0) / 100).toFixed(2).replace(".", ",") %></td>
-        <td><%= v.stock %></td>
+        <td style="<%= v.stock <= v.min_stock ? 'color:red; font-weight:bold;' : '' %>">
+  <%= v.stock %>
+</td>
         <td><%= v.min_stock %></td>
 
         <td>
