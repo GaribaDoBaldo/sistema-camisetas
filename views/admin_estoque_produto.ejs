@@ -65,16 +65,38 @@
         <th>Preço</th>
         <th>Estoque</th>
         <th>Mínimo</th>
+        <th>Movimentar</th>
       </tr>
 
       <% variants.forEach(v => { %>
-        <tr>
-          <td><%= v.sku || "-" %></td>
-          <td><%= v.color || "-" %></td>
-          <td><%= v.size || "-" %></td>
-          <td>R$ <%= (v.price_cents/100).toFixed(2).replace(".", ",") %></td>
-          <td><%= v.stock %></td>
-          <td><%= v.min_stock %></td>
+  <tr>
+    <td><%= v.sku || "-" %></td>
+    <td><%= v.color || "-" %></td>
+    <td><%= v.size || "-" %></td>
+    <td>R$ <%= (v.price_cents/100).toFixed(2).replace(".", ",") %></td>
+    <td><%= v.stock %></td>
+    <td><%= v.min_stock %></td>
+
+    <td>
+      <form action="/admin/estoque/variacao/<%= v.id %>/movimentar" method="POST" style="display:flex; gap:6px; align-items:center;">
+        <input type="hidden" name="return_to" value="/admin/estoque/produto/<%= product.id %>" />
+
+        <select name="type">
+          <option value="IN">Entrada</option>
+          <option value="OUT">Saída</option>
+        </select>
+
+        <input name="quantity" type="number" min="1" placeholder="Qtd" required style="width:70px;" />
+        <input name="reason" placeholder="Motivo (opcional)" />
+        <button type="submit">OK</button>
+      </form>
+    </td>
+  </tr>
+<% }) %>
+
+</table>
+<% } %>
+
         </tr>
       <% }) %>
     </table>
