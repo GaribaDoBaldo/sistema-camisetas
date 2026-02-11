@@ -52,56 +52,49 @@
 
   <hr/>
 
-  <h2>Variações</h2>
+<h2>Variações</h2>
 
-  <% if (variants.length === 0) { %>
-    <p>Nenhuma variação cadastrada ainda.</p>
-  <% } else { %>
-    <table border="1" cellpadding="6">
+<% if (variants.length === 0) { %>
+  <p>Nenhuma variação cadastrada ainda.</p>
+<% } else { %>
+  <table border="1" cellpadding="6">
+    <tr>
+      <th>SKU</th>
+      <th>Cor</th>
+      <th>Tamanho</th>
+      <th>Preço</th>
+      <th>Estoque</th>
+      <th>Mínimo</th>
+      <th>Movimentar</th>
+    </tr>
+
+    <% variants.forEach(v => { %>
       <tr>
-        <th>SKU</th>
-        <th>Cor</th>
-        <th>Tamanho</th>
-        <th>Preço</th>
-        <th>Estoque</th>
-        <th>Mínimo</th>
-        <th>Movimentar</th>
+        <td><%= v.sku || "-" %></td>
+        <td><%= v.color || "-" %></td>
+        <td><%= v.size || "-" %></td>
+        <td>R$ <%= ((Number(v.price_cents) || 0) / 100).toFixed(2).replace(".", ",") %></td>
+        <td><%= v.stock %></td>
+        <td><%= v.min_stock %></td>
+
+        <td>
+          <form action="/admin/estoque/variacao/<%= v.id %>/movimentar" method="POST" style="display:flex; gap:6px; align-items:center;">
+            <input type="hidden" name="return_to" value="/admin/estoque/produto/<%= product.id %>" />
+
+            <select name="type">
+              <option value="IN">Entrada</option>
+              <option value="OUT">Saída</option>
+            </select>
+
+            <input name="quantity" type="number" min="1" placeholder="Qtd" required style="width:70px;" />
+            <input name="reason" placeholder="Motivo (opcional)" />
+            <button type="submit">OK</button>
+          </form>
+        </td>
       </tr>
-
-      <% variants.forEach(v => { %>
-  <tr>
-    <td><%= v.sku || "-" %></td>
-    <td><%= v.color || "-" %></td>
-    <td><%= v.size || "-" %></td>
-    <td>
-  R$ <%= ((Number(v.price_cents) || 0) / 100).toFixed(2).replace(".", ",") %>
-</td>
-    <td><%= v.stock %></td>
-    <td><%= v.min_stock %></td>
-
-    <td>
-      <form action="/admin/estoque/variacao/<%= v.id %>/movimentar" method="POST" style="display:flex; gap:6px; align-items:center;">
-        <input type="hidden" name="return_to" value="/admin/estoque/produto/<%= product.id %>" />
-
-        <select name="type">
-          <option value="IN">Entrada</option>
-          <option value="OUT">Saída</option>
-        </select>
-
-        <input name="quantity" type="number" min="1" placeholder="Qtd" required style="width:70px;" />
-        <input name="reason" placeholder="Motivo (opcional)" />
-        <button type="submit">OK</button>
-      </form>
-    </td>
-  </tr>
-<% }) %>
-
-</table>
+    <% }) %>
+  </table>
 <% } %>
 
-        </tr>
-      <% }) %>
-    </table>
-  <% } %>
 </body>
 </html>
