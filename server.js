@@ -269,6 +269,70 @@ app.post("/admin/estoque/produto/:id/variacao", requireAuth, async (req, res) =>
   }
 });
 
+// =========================
+// ESTOQUE (ADMIN) - MOVIMENTAR (IN / OUT)
+// =========================
+app.post("/admin/estoque/variacao/:id/movimentar", requireAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const variantId = req.params.id;
+    const { type, quantity, reason, return_to } = req.body;
+
+    const qty = Number(quantity);
+    if (!["IN", "OUT"].includes(type)) return res.status(400).send("Tipo inválido.");
+    if (!Number.isInteger(qty) || qty <= 0) return res.status(400).send("Quantidade inválida.");
+
+    await client.query("BEGIN");
+
+    // trava a linha para evitar duas pessoas mexendo ao mesmo tempo
+    const vRes = await client.query(
+      "SELECT id, stock FROM product_variants WHERE id = $1 FOR UPDATE",
+      [variantId]
+    );
+    if (vRes.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).send("Variação não encontrada.");
+    }
+
+    const currentStock = vRes.rows[0].stock;
+    let newStock = currentStock;
+
+    if (type === "IN") newStock = currentStock + qty;
+    if (type === "OUT") {
+      newStock = currentStock - qty;
+      if (newStock < 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).send("Saída maior que o estoque atual.");
+      }
+    }
+
+    // registra histórico
+    await client.query(
+      `INSERT INTO stock_movements (variant_id, type, quantity, reason, created_by)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [variantId, type, qty, reason?.trim() || null, req.session.user.id]
+    );
+
+    // atualiza estoque
+    await client.query(
+      "UPDATE product_variants SET stock = $1, updated_at = NOW() WHERE id = $2",
+      [newStock, variantId]
+    );
+
+    await client.query("COMMIT");
+
+    // volta para a página que chamou
+    return res.redirect(return_to || "/admin/estoque");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    return res.status(500).send("Erro ao movimentar estoque.");
+  } finally {
+    client.release();
+  }
+});
 app.listen(PORT, () => {
   console.log("Servidor rodando na porta", PORT);
 });
