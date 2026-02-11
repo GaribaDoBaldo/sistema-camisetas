@@ -73,7 +73,9 @@
     <td><%= v.sku || "-" %></td>
     <td><%= v.color || "-" %></td>
     <td><%= v.size || "-" %></td>
-    <td>R$ <%= (v.price_cents/100).toFixed(2).replace(".", ",") %></td>
+    <td>
+  R$ <%= ((Number(v.price_cents) || 0) / 100).toFixed(2).replace(".", ",") %>
+</td>
     <td><%= v.stock %></td>
     <td><%= v.min_stock %></td>
 
