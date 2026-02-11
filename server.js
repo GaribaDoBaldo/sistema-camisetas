@@ -172,6 +172,43 @@ app.get("/admin/estoque", requireAuth, async (req, res) => {
 
 
 const PORT = process.env.PORT || 3000;
+
+// =========================
+// ESTOQUE (ADMIN) - NOVO PRODUTO (FORM)
+// =========================
+app.get("/admin/estoque/novo-produto", requireAuth, (req, res) => {
+  if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+  res.render("admin_estoque_novo_produto", { user: req.session.user, error: null });
+});
+
+// =========================
+// ESTOQUE (ADMIN) - CRIAR PRODUTO (POST)
+// =========================
+app.post("/admin/estoque/produto", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const { name, category, description } = req.body;
+
+    if (!name || name.trim().length < 2) {
+      return res.status(400).render("admin_estoque_novo_produto", {
+        user: req.session.user,
+        error: "Nome do produto é obrigatório.",
+      });
+    }
+
+    await pool.query(
+      "INSERT INTO products (name, category, description) VALUES ($1, $2, $3)",
+      [name.trim(), category?.trim() || null, description?.trim() || null]
+    );
+
+    res.redirect("/admin/estoque");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao criar produto.");
+  }
+});
+
 app.listen(PORT, () => {
   console.log("Servidor rodando na porta", PORT);
 });
