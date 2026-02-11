@@ -50,7 +50,9 @@
           <td><%= v.sku || "-" %></td>
           <td><%= v.color || "-" %></td>
           <td><%= v.size || "-" %></td>
-          <td><%= v.stock %></td>
+          <td style="<%= v.stock <= v.min_stock ? 'color:red; font-weight:bold;' : '' %>">
+  <%= v.stock %>
+</td>
         </tr>
       <% }) %>
     </table>
