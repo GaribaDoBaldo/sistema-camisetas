@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Produto</title>
+</head>
+<body>
+  <p><a href="/admin/estoque">← Voltar</a></p>
+
+  <h1>Produto: <%= product.name %></h1>
+  <p><b>Categoria:</b> <%= product.category || "-" %></p>
+  <p><b>Descrição:</b> <%= product.description || "-" %></p>
+
+  <hr/>
+
+  <h2>Adicionar variação (cor/tamanho)</h2>
+  <form action="/admin/estoque/produto/<%= product.id %>/variacao" method="POST">
+    <div>
+      <label>SKU (opcional)</label><br/>
+      <input name="sku" placeholder="ex: CAM-BAS-PRETA-M" />
+    </div>
+
+    <div>
+      <label>Cor</label><br/>
+      <input name="color" placeholder="ex: preta" />
+    </div>
+
+    <div>
+      <label>Tamanho</label><br/>
+      <input name="size" placeholder="ex: P, M, G" />
+    </div>
+
+    <div>
+      <label>Preço (centavos)</label><br/>
+      <input name="price_cents" type="number" min="0" placeholder="ex: 4990" />
+      <small>(R$ 49,90 = 4990)</small>
+    </div>
+
+    <div>
+      <label>Estoque inicial</label><br/>
+      <input name="stock" type="number" min="0" value="0" />
+    </div>
+
+    <div>
+      <label>Estoque mínimo</label><br/>
+      <input name="min_stock" type="number" min="0" value="0" />
+    </div>
+
+    <button type="submit">Criar variação</button>
+  </form>
+
+  <hr/>
+
+  <h2>Variações</h2>
+
+  <% if (variants.length === 0) { %>
+    <p>Nenhuma variação cadastrada ainda.</p>
+  <% } else { %>
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>SKU</th>
+        <th>Cor</th>
+        <th>Tamanho</th>
+        <th>Preço</th>
+        <th>Estoque</th>
+        <th>Mínimo</th>
+      </tr>
+
+      <% variants.forEach(v => { %>
+        <tr>
+          <td><%= v.sku || "-" %></td>
+          <td><%= v.color || "-" %></td>
+          <td><%= v.size || "-" %></td>
+          <td>R$ <%= (v.price_cents/100).toFixed(2).replace(".", ",") %></td>
+          <td><%= v.stock %></td>
+          <td><%= v.min_stock %></td>
+        </tr>
+      <% }) %>
+    </table>
+  <% } %>
+</body>
+</html>
