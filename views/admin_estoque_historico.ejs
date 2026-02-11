@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Histórico de Estoque</title>
+</head>
+<body>
+  <h1>Histórico de Movimentações</h1>
+
+  <p><a href="/admin/estoque">← Voltar ao Estoque</a></p>
+
+  <% if (movements.length === 0) { %>
+    <p>Nenhuma movimentação ainda.</p>
+  <% } else { %>
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Data</th>
+        <th>Produto</th>
+        <th>Variação</th>
+        <th>Tipo</th>
+        <th>Qtd</th>
+        <th>Motivo</th>
+        <th>Por</th>
+      </tr>
+
+      <% movements.forEach(m => { %>
+        <tr>
+          <td><%= new Date(m.created_at).toLocaleString("pt-BR") %></td>
+          <td><%= m.product_name %></td>
+          <td><%= [m.color, m.size, m.sku].filter(Boolean).join(" / ") %></td>
+          <td><%= m.type === "IN" ? "Entrada" : "Saída" %></td>
+          <td><%= m.quantity %></td>
+          <td><%= m.reason || "-" %></td>
+          <td><%= m.created_by_name || "-" %></td>
+        </tr>
+      <% }) %>
+    </table>
+  <% } %>
+</body>
+</html>
