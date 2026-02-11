@@ -41,6 +41,11 @@ function requireAuth(req, res, next) {
 }
 
 // tela de login
+app.get("/", (req, res) => {
+  if (req.session.user) return res.redirect("/dashboard");
+  return res.redirect("/login");
+});
+
 app.get("/login", (req, res) => {
   res.render("login", { error: null });
 });
@@ -169,9 +174,6 @@ app.get("/admin/estoque", requireAuth, async (req, res) => {
     res.status(500).send("Erro ao carregar estoque.");
   }
 });
-
-
-const PORT = process.env.PORT || 3000;
 
 // =========================
 // ESTOQUE (ADMIN) - NOVO PRODUTO (FORM)
@@ -333,6 +335,8 @@ app.post("/admin/estoque/variacao/:id/movimentar", requireAuth, async (req, res)
     client.release();
   }
 });
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Servidor rodando na porta", PORT);
 });
