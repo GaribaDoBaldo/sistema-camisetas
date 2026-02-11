@@ -18,7 +18,7 @@
     <ul>
       <% products.forEach(p => { %>
         <li>
-          <b><%= p.name %></b>
+          <a href="/admin/estoque/produto/<%= p.id %>"><b><%= p.name %></b></a>
           (<%= p.category || "sem categoria" %>)
         </li>
       <% }) %>
