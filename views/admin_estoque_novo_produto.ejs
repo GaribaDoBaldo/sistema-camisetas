@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Novo Produto</title>
+</head>
+<body>
+  <h1>Novo Produto</h1>
+
+  <p><a href="/admin/estoque">← Voltar</a></p>
+
+  <% if (error) { %>
+    <p style="color:red;"><%= error %></p>
+  <% } %>
+
+  <form action="/admin/estoque/produto" method="POST">
+    <div>
+      <label>Nome *</label><br/>
+      <input name="name" required />
+    </div>
+
+    <div>
+      <label>Categoria</label><br/>
+      <input name="category" />
+    </div>
+
+    <div>
+      <label>Descrição</label><br/>
+      <textarea name="description" rows="4" cols="40"></textarea>
+    </div>
+
+    <button type="submit">Salvar</button>
+  </form>
+</body>
+</html>
