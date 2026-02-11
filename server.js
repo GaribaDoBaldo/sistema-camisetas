@@ -335,6 +335,35 @@ app.post("/admin/estoque/variacao/:id/movimentar", requireAuth, async (req, res)
     client.release();
   }
 });
+// =========================
+// ESTOQUE (ADMIN) - HISTÓRICO
+// =========================
+app.get("/admin/estoque/historico", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const result = await pool.query(
+      `SELECT m.id, m.type, m.quantity, m.reason, m.created_at,
+              v.sku, v.color, v.size,
+              p.name AS product_name,
+              u.name AS created_by_name
+       FROM stock_movements m
+       JOIN product_variants v ON v.id = m.variant_id
+       JOIN products p ON p.id = v.product_id
+       LEFT JOIN users u ON u.id = m.created_by
+       ORDER BY m.created_at DESC
+       LIMIT 200`
+    );
+
+    res.render("admin_estoque_historico", {
+      user: req.session.user,
+      movements: result.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao carregar histórico.");
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
