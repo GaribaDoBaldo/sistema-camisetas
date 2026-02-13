@@ -144,7 +144,7 @@ app.post("/admin/users", requireAuth, async (req, res) => {
   }
 });
 // =========================
-// ESTOQUE (ADMIN) - LISTA
+// ESTOQUE (ADMIN) - LISTA + BUSCA
 // =========================
 app.get("/admin/estoque", requireAuth, async (req, res) => {
   try {
@@ -185,13 +185,14 @@ app.get("/admin/estoque", requireAuth, async (req, res) => {
       user: req.session.user,
       products: productsResult.rows,
       variants: variantsResult.rows,
-      q, // <- passa a busca pra tela
+      q,
     });
   } catch (err) {
     console.error(err);
     res.status(500).send("Erro ao carregar estoque.");
   }
 });
+
 
     const productsResult = await pool.query(
       `SELECT id, name, category, active
