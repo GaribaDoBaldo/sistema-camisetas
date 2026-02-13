@@ -150,6 +150,49 @@ app.get("/admin/estoque", requireAuth, async (req, res) => {
   try {
     if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
 
+    const q = (req.query.q || "").trim();
+    const like = `%${q}%`;
+
+    const productsResult = await pool.query(
+      `
+      SELECT id, name, category, active
+      FROM products
+      WHERE ($1 = '' OR name ILIKE $2 OR category ILIKE $2)
+      ORDER BY id DESC
+      `,
+      [q, like]
+    );
+
+    const variantsResult = await pool.query(
+      `
+      SELECT v.id, v.product_id, v.sku, v.color, v.size, v.price_cents, v.stock, v.min_stock, v.active,
+             p.name AS product_name
+      FROM product_variants v
+      JOIN products p ON p.id = v.product_id
+      WHERE (
+        $1 = ''
+        OR p.name ILIKE $2
+        OR v.sku ILIKE $2
+        OR v.color ILIKE $2
+        OR v.size ILIKE $2
+      )
+      ORDER BY v.id DESC
+      `,
+      [q, like]
+    );
+
+    res.render("admin_estoque_index", {
+      user: req.session.user,
+      products: productsResult.rows,
+      variants: variantsResult.rows,
+      q, // <- passa a busca pra tela
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao carregar estoque.");
+  }
+});
+
     const productsResult = await pool.query(
       `SELECT id, name, category, active
        FROM products
