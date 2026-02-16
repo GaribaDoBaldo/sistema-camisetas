@@ -211,37 +211,40 @@ app.get("/admin/estoque/sugestoes", requireAuth, async (req, res) => {
     const like = `%${q}%`;
 
     // Pega sugestões de: nome do produto, SKU, cor e tamanho
-    const result = await pool.query(
-      `
-      SELECT suggestion
-      FROM (
-        SELECT DISTINCT p.name AS suggestion
-        FROM products p
-        WHERE p.name ILIKE $1
+   const result = await pool.query(
+  `
+  SELECT type, text
+  FROM (
+    SELECT DISTINCT 'Produto' AS type, p.name AS text
+    FROM products p
+    WHERE p.name ILIKE $1
 
-        UNION
+    UNION ALL
 
-        SELECT DISTINCT v.sku AS suggestion
-        FROM product_variants v
-        WHERE v.sku ILIKE $1 AND v.sku IS NOT NULL
+    SELECT DISTINCT 'SKU' AS type, v.sku AS text
+    FROM product_variants v
+    WHERE v.sku ILIKE $1 AND v.sku IS NOT NULL
 
-        UNION
+    UNION ALL
 
-        SELECT DISTINCT v.color AS suggestion
-        FROM product_variants v
-        WHERE v.color ILIKE $1 AND v.color IS NOT NULL
+    SELECT DISTINCT 'Cor' AS type, v.color AS text
+    FROM product_variants v
+    WHERE v.color ILIKE $1 AND v.color IS NOT NULL
 
-        UNION
+    UNION ALL
 
-        SELECT DISTINCT v.size AS suggestion
-        FROM product_variants v
-        WHERE v.size ILIKE $1 AND v.size IS NOT NULL
-      ) s
-      ORDER BY suggestion ASC
-      LIMIT 10
-      `,
-      [like]
-    );
+    SELECT DISTINCT 'Tamanho' AS type, v.size AS text
+    FROM product_variants v
+    WHERE v.size ILIKE $1 AND v.size IS NOT NULL
+  ) s
+  ORDER BY type ASC, text ASC
+  LIMIT 10
+  `,
+  [like]
+);
+
+// agora devolve lista de objetos
+return res.json(result.rows);
 
     // retorna só lista de textos
     return res.json(result.rows.map((r) => r.suggestion));
