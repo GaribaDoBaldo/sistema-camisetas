@@ -7,11 +7,31 @@
 </head>
 <body>
 <form method="GET" action="/admin/estoque" style="margin-bottom: 15px;">
+  <div style="position: relative; display: inline-block;">
   <input
+    id="qInput"
     name="q"
     value="<%= q || '' %>"
     placeholder="Buscar (nome, sku, cor, tamanho...)"
+    autocomplete="off"
   />
+
+  <div
+    id="suggestions"
+    style="
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ccc;
+      display: none;
+      z-index: 9999;
+      max-height: 200px;
+      overflow-y: auto;
+    "
+  ></div>
+</div>
 
   <label style="margin-left: 10px;">
     <input type="checkbox" name="low" value="1" <%= low ? "checked" : "" %> />
@@ -71,5 +91,73 @@
       <% }) %>
     </table>
   <% } %>
+<script>
+  const input = document.getElementById("qInput");
+  const box = document.getElementById("suggestions");
+
+  // pega o estado do checkbox low pra manter o filtro quando clicar na sugestão
+  function isLowChecked() {
+    const lowCheckbox = document.querySelector('input[name="low"]');
+    return lowCheckbox && lowCheckbox.checked;
+  }
+
+  function hideBox() {
+    box.style.display = "none";
+    box.innerHTML = "";
+  }
+
+  function showSuggestions(items) {
+    if (!items || items.length === 0) return hideBox();
+
+    box.innerHTML = items
+      .map((text) => {
+        // cada sugestão vira um "botão"
+        return `<div class="sItem" style="padding:8px; cursor:pointer; border-bottom:1px solid #eee;">${text}</div>`;
+      })
+      .join("");
+
+    box.style.display = "block";
+
+    // clique numa sugestão: preenche o input e envia o form
+    box.querySelectorAll(".sItem").forEach((el) => {
+      el.addEventListener("click", () => {
+        input.value = el.textContent;
+
+        // envia o form com q + low (se marcado)
+        const params = new URLSearchParams();
+        params.set("q", input.value);
+        if (isLowChecked()) params.set("low", "1");
+
+        window.location.href = "/admin/estoque?" + params.toString();
+      });
+    });
+  }
+
+  // debounce: espera você parar de digitar 250ms pra buscar
+  let timer = null;
+
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+
+    const q = input.value.trim();
+    if (q.length < 2) return hideBox();
+
+    timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/admin/estoque/sugestoes?q=${encodeURIComponent(q)}`);
+        const items = await res.json();
+        showSuggestions(items);
+      } catch (e) {
+        hideBox();
+      }
+    }, 250);
+  });
+
+  // se clicar fora, fecha a caixa
+  document.addEventListener("click", (e) => {
+    if (!box.contains(e.target) && e.target !== input) hideBox();
+  });
+</script>
+
 </body>
 </html>
