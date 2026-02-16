@@ -152,6 +152,7 @@ app.get("/admin/estoque", requireAuth, async (req, res) => {
 
     const q = (req.query.q || "").trim();
     const like = `%${q}%`;
+    const low = req.query.low === "1";
 
     const productsResult = await pool.query(
       `
@@ -164,29 +165,31 @@ app.get("/admin/estoque", requireAuth, async (req, res) => {
     );
 
     const variantsResult = await pool.query(
-      `
-      SELECT v.id, v.product_id, v.sku, v.color, v.size, v.price_cents, v.stock, v.min_stock, v.active,
-             p.name AS product_name
-      FROM product_variants v
-      JOIN products p ON p.id = v.product_id
-      WHERE (
-        $1 = ''
-        OR p.name ILIKE $2
-        OR v.sku ILIKE $2
-        OR v.color ILIKE $2
-        OR v.size ILIKE $2
-      )
-      ORDER BY v.id DESC
-      `,
-      [q, like]
-    );
+  `
+  SELECT v.id, v.product_id, v.sku, v.color, v.size, v.price_cents, v.stock, v.min_stock, v.active,
+         p.name AS product_name
+  FROM product_variants v
+  JOIN products p ON p.id = v.product_id
+  WHERE (
+    $1 = ''
+    OR p.name ILIKE $2
+    OR v.sku ILIKE $2
+    OR v.color ILIKE $2
+    OR v.size ILIKE $2
+  )
+  AND ($3 = false OR v.stock <= v.min_stock)
+  ORDER BY v.id DESC
+  `,
+  [q, like, low]
+);
 
     res.render("admin_estoque_index", {
-      user: req.session.user,
-      products: productsResult.rows,
-      variants: variantsResult.rows,
-      q,
-    });
+  user: req.session.user,
+  products: productsResult.rows,
+  variants: variantsResult.rows,
+  q,
+  low,
+});
   } catch (err) {
     console.error(err);
     res.status(500).send("Erro ao carregar estoque.");
