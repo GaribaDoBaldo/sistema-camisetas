@@ -106,32 +106,35 @@
     box.innerHTML = "";
   }
 
-  function showSuggestions(items) {
-    if (!items || items.length === 0) return hideBox();
+function showSuggestions(items) {
+  if (!items || items.length === 0) return hideBox();
 
-    box.innerHTML = items
-      .map((text) => {
-        // cada sugestão vira um "botão"
-        return `<div class="sItem" style="padding:8px; cursor:pointer; border-bottom:1px solid #eee;">${text}</div>`;
-      })
-      .join("");
+  box.innerHTML = items
+    .map((item) => {
+      const label = item.type || "Sugestão";
+      const text = item.text || "";
+      return `
+        <div class="sItem" data-text="${text}" style="padding:8px; cursor:pointer; border-bottom:1px solid #eee;">
+          <b style="margin-right:6px;">${label}:</b> ${text}
+        </div>`;
+    })
+    .join("");
 
-    box.style.display = "block";
+  box.style.display = "block";
 
-    // clique numa sugestão: preenche o input e envia o form
-    box.querySelectorAll(".sItem").forEach((el) => {
-      el.addEventListener("click", () => {
-        input.value = el.textContent;
+  box.querySelectorAll(".sItem").forEach((el) => {
+    el.addEventListener("click", () => {
+      input.value = el.getAttribute("data-text");
 
-        // envia o form com q + low (se marcado)
-        const params = new URLSearchParams();
-        params.set("q", input.value);
-        if (isLowChecked()) params.set("low", "1");
+      const params = new URLSearchParams();
+      params.set("q", input.value);
+      if (isLowChecked()) params.set("low", "1");
 
-        window.location.href = "/admin/estoque?" + params.toString();
-      });
+      window.location.href = "/admin/estoque?" + params.toString();
     });
-  }
+  });
+}
+
 
   // debounce: espera você parar de digitar 250ms pra buscar
   let timer = null;
