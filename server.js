@@ -197,6 +197,61 @@ app.get("/admin/estoque", requireAuth, async (req, res) => {
 });
 
 // =========================
+// ESTOQUE (ADMIN) - SUGESTÕES (AUTOCOMPLETE)
+// =========================
+app.get("/admin/estoque/sugestoes", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).json([]);
+
+    const q = (req.query.q || "").trim();
+
+    // se digitar pouco, não busca (evita peso no servidor)
+    if (q.length < 2) return res.json([]);
+
+    const like = `%${q}%`;
+
+    // Pega sugestões de: nome do produto, SKU, cor e tamanho
+    const result = await pool.query(
+      `
+      SELECT suggestion
+      FROM (
+        SELECT DISTINCT p.name AS suggestion
+        FROM products p
+        WHERE p.name ILIKE $1
+
+        UNION
+
+        SELECT DISTINCT v.sku AS suggestion
+        FROM product_variants v
+        WHERE v.sku ILIKE $1 AND v.sku IS NOT NULL
+
+        UNION
+
+        SELECT DISTINCT v.color AS suggestion
+        FROM product_variants v
+        WHERE v.color ILIKE $1 AND v.color IS NOT NULL
+
+        UNION
+
+        SELECT DISTINCT v.size AS suggestion
+        FROM product_variants v
+        WHERE v.size ILIKE $1 AND v.size IS NOT NULL
+      ) s
+      ORDER BY suggestion ASC
+      LIMIT 10
+      `,
+      [like]
+    );
+
+    // retorna só lista de textos
+    return res.json(result.rows.map((r) => r.suggestion));
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json([]);
+  }
+});
+
+// =========================
 // ESTOQUE (ADMIN) - NOVO PRODUTO (FORM)
 // =========================
 app.get("/admin/estoque/novo-produto", requireAuth, (req, res) => {
