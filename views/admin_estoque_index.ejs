@@ -71,22 +71,41 @@
   <% } else { %>
     <table border="1" cellpadding="6">
       <tr>
-        <th>Produto</th>
-        <th>SKU</th>
-        <th>Cor</th>
-        <th>Tamanho</th>
-        <th>Estoque</th>
-      </tr>
+  <th>Produto</th>
+  <th>SKU</th>
+  <th>Cor</th>
+  <th>Tamanho</th>
+  <th>Estoque</th>
+  <th>Ação</th>
+</tr>
 
-      <% variants.forEach(v => { %>
-        <tr>
-          <td><%= v.product_name %></td>
-          <td><%= v.sku || "-" %></td>
-          <td><%= v.color || "-" %></td>
-          <td><%= v.size || "-" %></td>
-          <td style="<%= v.stock <= v.min_stock ? 'color:red; font-weight:bold;' : '' %>">
-  <%= v.stock %>
-</td>
+ <tr>
+  <td><%= v.product_name %></td>
+  <td><%= v.sku || "-" %></td>
+  <td><%= v.color || "-" %></td>
+  <td><%= v.size || "-" %></td>
+  <td style="<%= v.stock <= v.min_stock ? 'color:red; font-weight:bold;' : '' %>">
+    <%= v.stock %>
+  </td>
+
+  <td>
+    <form method="POST" action="/admin/estoque/variacao/<%= v.id %>/movimentar" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+      <input type="hidden" name="return_to" value="/admin/estoque?q=<%= encodeURIComponent(q || '') %><%= low ? '&low=1' : '' %>">
+
+      <select name="type">
+        <option value="IN">Entrada</option>
+        <option value="OUT">Saída</option>
+      </select>
+
+      <input type="number" name="quantity" min="1" placeholder="Qtd" style="width:70px;" required>
+
+      <input type="text" name="reason" placeholder="Motivo (opcional)" style="width:160px;">
+
+      <button type="submit">OK</button>
+    </form>
+  </td>
+</tr>
+
         </tr>
       <% }) %>
     </table>
