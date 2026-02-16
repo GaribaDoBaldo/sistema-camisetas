@@ -6,6 +6,20 @@
   <title>Estoque</title>
 </head>
 <body>
+<form method="GET" action="/admin/estoque" style="margin-bottom: 15px;">
+  <input
+    name="q"
+    value="<%= q || '' %>"
+    placeholder="Buscar (nome, sku, cor, tamanho...)"
+  />
+
+  <label style="margin-left: 10px;">
+    <input type="checkbox" name="low" value="1" <%= low ? "checked" : "" %> />
+    Só estoque baixo
+  </label>
+
+  <button type="submit">Filtrar</button>
+</form>
   <h1>Estoque</h1>
   <p><a href="/admin/estoque/novo-produto">+ Novo produto</a></p>
   <p><a href="/dashboard">← Voltar</a></p>
