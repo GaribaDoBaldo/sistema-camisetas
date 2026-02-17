@@ -39,6 +39,18 @@ function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect("/login");
   next();
 }
+async function auditLog({ userId, action, entityType, entityId = null, details = null }) {
+  try {
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId || null, action, entityType, entityId, details]
+    );
+  } catch (err) {
+    console.error("AUDIT LOG ERROR:", err);
+  }
+}
+
 
 // tela de login
 app.get("/", (req, res) => {
