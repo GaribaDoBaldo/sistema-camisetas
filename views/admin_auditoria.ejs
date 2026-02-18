@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auditoria</title>
+</head>
+<body>
+  <h1>Auditoria</h1>
+  <p><a href="/admin">← Voltar</a></p>
+
+  <% if (!logs || logs.length === 0) { %>
+    <p>Nenhum log ainda.</p>
+  <% } else { %>
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>Data</th>
+        <th>Usuário</th>
+        <th>Ação</th>
+        <th>Entidade</th>
+        <th>Detalhes</th>
+      </tr>
+
+      <% logs.forEach(l => { %>
+        <tr>
+          <td><%= new Date(l.created_at).toLocaleString('pt-BR') %></td>
+          <td><%= l.user_name || "—" %> (<%= l.user_email || "—" %>)</td>
+          <td><%= l.action %></td>
+          <td><%= l.entity_type %> #<%= l.entity_id || "—" %></td>
+          <td><pre style="margin:0;"><%= JSON.stringify(l.details, null, 2) %></pre></td>
+        </tr>
+      <% }) %>
+    </table>
+  <% } %>
+</body>
+</html>
