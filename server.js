@@ -561,6 +561,32 @@ app.get("/admin/auditoria", requireAuth, async (req, res) => {
     res.status(500).send("Erro ao carregar auditoria.");
   }
 });
+// =========================
+// PEDIDOS (ADMIN) - LISTA
+// =========================
+app.get("/admin/pedidos", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin")
+      return res.status(403).send("Acesso negado.");
+
+    const result = await pool.query(
+      `SELECT o.id, o.customer_name, o.description, o.status, o.created_at,
+              u.name AS created_by_name
+       FROM orders o
+       LEFT JOIN users u ON u.id = o.created_by
+       ORDER BY o.created_at DESC`
+    );
+
+    res.render("admin_pedidos_index", {
+      user: req.session.user,
+      orders: result.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao carregar pedidos.");
+  }
+});
+
 
 
 const PORT = process.env.PORT || 3000;
