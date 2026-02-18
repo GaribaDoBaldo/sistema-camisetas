@@ -290,23 +290,33 @@ app.post("/admin/estoque/produto", requireAuth, async (req, res) => {
       });
     }
 
-    await pool.query(
-      "INSERT INTO products (name, category, description) VALUES ($1, $2, $3)",
+    // ✅ cria produto e pega o id criado
+    const inserted = await pool.query(
+      "INSERT INTO products (name, category, description) VALUES ($1, $2, $3) RETURNING id",
       [name.trim(), category?.trim() || null, description?.trim() || null]
     );
 
-    res.redirect("/admin/estoque");
+    const newProductId = inserted.rows[0].id;
+
+    // ✅ grava auditoria (antes do redirect)
+    await auditLog({
+      userId: req.session.user.id,
+      action: "CREATE_PRODUCT",
+      entityType: "product",
+      entityId: newProductId,
+      details: {
+        name: name.trim(),
+        category: category?.trim() || null,
+      },
+    });
+
+    return res.redirect("/admin/estoque");
   } catch (err) {
     console.error(err);
-    res.status(500).send("Erro ao criar produto.");
+    return res.status(500).send("Erro ao criar produto.");
   }
-await auditLog({
-  userId: req.session.user.id,
-  action: "CREATE_PRODUCT",
-  entityType: "product",
-  entityId: null,
-  details: { name },
 });
+
   
 // =========================
 // ESTOQUE (ADMIN) - DETALHE DO PRODUTO + VARIAÇÕES
