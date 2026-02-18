@@ -415,6 +415,20 @@ app.post("/admin/estoque/variacao/:id/movimentar", requireAuth, async (req, res)
     );
 
     await client.query("COMMIT");
+    await auditLog({
+  userId: req.session.user.id,
+  action: "STOCK_MOVE",
+  entityType: "variant",
+  entityId: Number(variantId),
+  details: {
+    type,
+    quantity: qty,
+    reason: reason?.trim() || null,
+    stock_before: currentStock,
+    stock_after: newStock,
+  },
+});
+
 
     // volta para a página que chamou
     return res.redirect(return_to || "/admin/estoque");
