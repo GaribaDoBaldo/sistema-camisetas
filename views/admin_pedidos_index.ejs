@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Pedidos</title>
+</head>
+<body>
+
+<h1>📦 Pedidos</h1>
+
+<p><a href="/admin">← Voltar</a></p>
+
+<p><a href="/admin/pedidos/novo">+ Novo Pedido</a></p>
+
+<hr>
+
+<% if (orders.length === 0) { %>
+  <p>Nenhum pedido cadastrado ainda.</p>
+<% } else { %>
+  <table border="1" cellpadding="8">
+    <tr>
+      <th>ID</th>
+      <th>Cliente</th>
+      <th>Descrição</th>
+      <th>Status</th>
+      <th>Criado por</th>
+      <th>Data</th>
+    </tr>
+
+    <% orders.forEach(o => { %>
+      <tr>
+        <td><%= o.id %></td>
+        <td><%= o.customer_name %></td>
+        <td><%= o.description || "-" %></td>
+        <td><%= o.status %></td>
+        <td><%= o.created_by_name || "-" %></td>
+        <td><%= new Date(o.created_at).toLocaleString("pt-BR") %></td>
+      </tr>
+    <% }) %>
+  </table>
+<% } %>
+
+</body>
+</html>
