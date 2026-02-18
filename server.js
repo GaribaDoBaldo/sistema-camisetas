@@ -464,11 +464,35 @@ app.get("/admin/estoque/historico", requireAuth, async (req, res) => {
       user: req.session.user,
       movements: result.rows,
     });
+    
   } catch (err) {
     console.error(err);
     res.status(500).send("Erro ao carregar histórico.");
   }
 });
+app.get("/admin/auditoria", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const result = await pool.query(
+      `SELECT a.id, a.action, a.entity_type, a.entity_id, a.details, a.created_at,
+              u.name AS user_name, u.email AS user_email
+       FROM audit_logs a
+       LEFT JOIN users u ON u.id = a.user_id
+       ORDER BY a.created_at DESC
+       LIMIT 300`
+    );
+
+    res.render("admin_auditoria", {
+      user: req.session.user,
+      logs: result.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao carregar auditoria.");
+  }
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
