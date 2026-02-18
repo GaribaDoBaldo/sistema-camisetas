@@ -586,6 +586,70 @@ app.get("/admin/pedidos", requireAuth, async (req, res) => {
     res.status(500).send("Erro ao carregar pedidos.");
   }
 });
+// =========================
+// PEDIDOS (ADMIN) - NOVO (FORM)
+// =========================
+app.get("/admin/pedidos/novo", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    res.render("admin_pedidos_novo", {
+      user: req.session.user,
+      error: null,
+      values: { customer_name: "", description: "" },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao abrir formulário de pedido.");
+  }
+});
+
+// =========================
+// PEDIDOS (ADMIN) - CRIAR (POST)
+// =========================
+app.post("/admin/pedidos", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const { customer_name, description } = req.body;
+
+    if (!customer_name || customer_name.trim().length < 2) {
+      return res.status(400).render("admin_pedidos_novo", {
+        user: req.session.user,
+        error: "Nome do cliente é obrigatório.",
+        values: { customer_name: customer_name || "", description: description || "" },
+      });
+    }
+
+    const insert = await pool.query(
+      `INSERT INTO orders (customer_name, description, status, created_by)
+       VALUES ($1, $2, 'PENDING', $3)
+       RETURNING id`,
+      [customer_name.trim(), description?.trim() || null, req.session.user.id]
+    );
+
+    const orderId = insert.rows[0].id;
+
+    // Auditoria ✅ (igual estoque)
+    await auditLog({
+      userId: req.session.user.id,
+      action: "CREATE_ORDER",
+      entityType: "order",
+      entityId: orderId,
+      details: {
+        customer_name: customer_name.trim(),
+        description: description?.trim() || null,
+        status: "PENDING",
+      },
+    });
+
+    return res.redirect("/admin/pedidos");
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send("Erro ao criar pedido.");
+  }
+});
+
 
 
 
