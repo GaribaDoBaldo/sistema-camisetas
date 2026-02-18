@@ -300,7 +300,6 @@ app.post("/admin/estoque/produto", requireAuth, async (req, res) => {
     console.error(err);
     res.status(500).send("Erro ao criar produto.");
   }
-});
 await auditLog({
   userId: req.session.user.id,
   action: "CREATE_PRODUCT",
@@ -308,7 +307,7 @@ await auditLog({
   entityId: null,
   details: { name },
 });
-
+  
 // =========================
 // ESTOQUE (ADMIN) - DETALHE DO PRODUTO + VARIAÇÕES
 // =========================
