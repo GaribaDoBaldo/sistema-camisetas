@@ -129,32 +129,62 @@ app.get("/admin/users/new", requireAuth, (req, res) => {
   res.render("admin_user_new", { error: null });
 });
 
-// criar usuário (POST)
+// =========================
+// ADMIN - CRIAR USUÁRIO + AUDITORIA
+// =========================
 app.post("/admin/users", requireAuth, async (req, res) => {
   try {
-    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+    if (req.session.user.role !== "admin")
+      return res.status(403).send("Acesso negado.");
 
     const { name, email, password, role } = req.body;
 
     // evita email repetido
-    const exists = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    const exists = await pool.query(
+      "SELECT id FROM users WHERE email = $1",
+      [email]
+    );
+
     if (exists.rowCount > 0) {
-      return res.status(400).render("admin_user_new", { error: "Esse email já está cadastrado." });
+      return res.status(400).render("admin_user_new", {
+        error: "Esse email já está cadastrado.",
+      });
     }
 
     const password_hash = await bcrypt.hash(password, 10);
 
-    await pool.query(
-      "INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4)",
-      [name, email, password_hash, role || "employee"]
+    // ✅ cria usuário e pega ID
+    const inserted = await pool.query(
+      `INSERT INTO users (name, email, password_hash, role)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [name.trim(), email.trim(), password_hash, role || "employee"]
     );
 
-    res.redirect("/admin/users");
+    const newUserId = inserted.rows[0].id;
+
+    // ✅ grava auditoria
+    await auditLog({
+      userId: req.session.user.id,
+      action: "CREATE_USER",
+      entityType: "user",
+      entityId: newUserId,
+      details: {
+        name: name.trim(),
+        email: email.trim(),
+        role: role || "employee",
+      },
+    });
+
+    return res.redirect("/admin/users");
   } catch (err) {
     console.error(err);
-    res.status(500).render("admin_user_new", { error: "Erro ao criar usuário." });
+    return res.status(500).render("admin_user_new", {
+      error: "Erro ao criar usuário.",
+    });
   }
 });
+
 // =========================
 // ESTOQUE (ADMIN) - LISTA + BUSCA
 // =========================
@@ -349,18 +379,22 @@ app.get("/admin/estoque/produto/:id", requireAuth, async (req, res) => {
   }
 });
 // =========================
-// ESTOQUE (ADMIN) - CRIAR VARIAÇÃO
+// ESTOQUE (ADMIN) - CRIAR VARIAÇÃO + AUDITORIA
 // =========================
 app.post("/admin/estoque/produto/:id/variacao", requireAuth, async (req, res) => {
   try {
-    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+    if (req.session.user.role !== "admin")
+      return res.status(403).send("Acesso negado.");
 
     const productId = req.params.id;
     const { sku, color, size, price_cents, stock, min_stock } = req.body;
 
-    await pool.query(
-      `INSERT INTO product_variants (product_id, sku, color, size, price_cents, stock, min_stock)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    // ✅ cria variação e pega o ID dela
+    const inserted = await pool.query(
+      `INSERT INTO product_variants 
+        (product_id, sku, color, size, price_cents, stock, min_stock)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id`,
       [
         productId,
         sku?.trim() || null,
@@ -372,10 +406,28 @@ app.post("/admin/estoque/produto/:id/variacao", requireAuth, async (req, res) =>
       ]
     );
 
-    res.redirect(`/admin/estoque/produto/${productId}`);
+    const newVariantId = inserted.rows[0].id;
+
+    // ✅ grava auditoria
+    await auditLog({
+      userId: req.session.user.id,
+      action: "CREATE_VARIANT",
+      entityType: "variant",
+      entityId: newVariantId,
+      details: {
+        product_id: Number(productId),
+        sku: sku?.trim() || null,
+        color: color?.trim() || null,
+        size: size?.trim() || null,
+        stock: Number(stock || 0),
+        min_stock: Number(min_stock || 0),
+      },
+    });
+
+    return res.redirect(`/admin/estoque/produto/${productId}`);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Erro ao criar variação (talvez SKU duplicado ou cor+tamanho repetido).");
+    return res.status(500).send("Erro ao criar variação.");
   }
 });
 
