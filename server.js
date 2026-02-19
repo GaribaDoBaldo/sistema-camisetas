@@ -768,6 +768,69 @@ app.post("/admin/pedidos/:id/atualizar", requireAuth, async (req, res) => {
        WHERE id = $3`,
       [status, production_stage || null, id]
     );
+    // 1) pega pedido atual
+const orderRow = await client.query(
+  "SELECT id, status, stock_committed FROM orders WHERE id = $1 FOR UPDATE",
+  [orderId]
+);
+if (orderRow.rowCount === 0) {
+  await client.query("ROLLBACK");
+  return res.status(404).send("Pedido não encontrado.");
+}
+
+const currentStatus = orderRow.rows[0].status;
+const stockCommitted = orderRow.rows[0].stock_committed;
+
+// 2) se está entrando em produção agora, faz baixa
+const enteringProduction = (currentStatus !== "IN_PRODUCTION" && newStatus === "IN_PRODUCTION");
+
+if (enteringProduction && stockCommitted === false) {
+  const itemsRes = await client.query(
+    "SELECT variant_id, quantity FROM order_items WHERE order_id = $1",
+    [orderId]
+  );
+
+  // baixa item por item com trava e validação
+  for (const it of itemsRes.rows) {
+    const vRes = await client.query(
+      "SELECT id, stock FROM product_variants WHERE id = $1 FOR UPDATE",
+      [it.variant_id]
+    );
+
+    const currentStock = vRes.rows[0].stock;
+    const newStock = currentStock - Number(it.quantity);
+
+    if (newStock < 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).send(`Estoque insuficiente na variação #${it.variant_id}.`);
+    }
+
+    // histórico estoque (OUT)
+    await client.query(
+      `INSERT INTO stock_movements (variant_id, type, quantity, reason, created_by)
+       VALUES ($1, 'OUT', $2, $3, $4)`,
+      [it.variant_id, Number(it.quantity), `Pedido #${orderId} (produção)`, req.session.user.id]
+    );
+
+    // atualiza estoque
+    await client.query(
+      "UPDATE product_variants SET stock = $1, updated_at = NOW() WHERE id = $2",
+      [newStock, it.variant_id]
+    );
+
+    // auditoria
+    await auditLog({
+      userId: req.session.user.id,
+      action: "ORDER_STOCK_COMMIT",
+      entityType: "order",
+      entityId: Number(orderId),
+      details: { variant_id: it.variant_id, quantity: Number(it.quantity), stock_before: currentStock, stock_after: newStock },
+    });
+  }
+
+  // marca como já baixado
+  await client.query("UPDATE orders SET stock_committed = TRUE WHERE id = $1", [orderId]);
+}
 
     // auditoria (se você quiser manter tudo registrado)
     await auditLog({
