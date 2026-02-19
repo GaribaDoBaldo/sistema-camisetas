@@ -649,8 +649,75 @@ app.post("/admin/pedidos", requireAuth, async (req, res) => {
     return res.status(500).send("Erro ao criar pedido.");
   }
 });
+// =========================
+// PEDIDOS (ADMIN) - DETALHE
+// =========================
+app.get("/admin/pedidos/:id", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
 
+    const id = Number(req.params.id);
 
+    const result = await pool.query(
+      `SELECT o.*, u.name AS created_by_name
+       FROM orders o
+       LEFT JOIN users u ON u.id = o.created_by
+       WHERE o.id = $1`,
+      [id]
+    );
+
+    if (result.rowCount === 0) return res.status(404).send("Pedido não encontrado.");
+
+    res.render("admin_pedidos_detalhe", {
+      user: req.session.user,
+      order: result.rows[0],
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao abrir pedido.");
+  }
+});
+
+// =========================
+// PEDIDOS (ADMIN) - ATUALIZAR STATUS/ETAPA
+// =========================
+app.post("/admin/pedidos/:id/status", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const id = Number(req.params.id);
+    const { status, production_stage } = req.body;
+
+    const allowedStatus = ["PENDING", "IN_PRODUCTION", "DONE"];
+    if (!allowedStatus.includes(status)) return res.status(400).send("Status inválido.");
+
+    const stage = (production_stage || "").trim() || null;
+
+    await pool.query(
+      `UPDATE orders
+       SET status = $1,
+           production_stage = $2,
+           updated_at = NOW()
+       WHERE id = $3`,
+      [status, stage, id]
+    );
+
+    // auditoria
+    await auditLog({
+      userId: req.session.user.id,
+      action: "UPDATE_ORDER_STATUS",
+      entityType: "order",
+      entityId: id,
+      details: { status, production_stage: stage },
+    });
+
+    return res.redirect(`/admin/pedidos/${id}`);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao atualizar pedido.");
+  }
+});
 
 
 const PORT = process.env.PORT || 3000;
