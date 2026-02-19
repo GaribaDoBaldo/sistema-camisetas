@@ -49,5 +49,30 @@
     <button type="submit">Salvar</button>
   </form>
 
+<h3>Itens</h3>
+<% if (!items || items.length === 0) { %>
+  <p>Nenhum item.</p>
+<% } else { %>
+  <table border="1" cellpadding="6">
+    <tr>
+      <th>Produto</th>
+      <th>SKU</th>
+      <th>Cor</th>
+      <th>Tamanho</th>
+      <th>Qtd</th>
+    </tr>
+    <% items.forEach(it => { %>
+      <tr>
+        <td><%= it.product_name %></td>
+        <td><%= it.sku || "-" %></td>
+        <td><%= it.color || "-" %></td>
+        <td><%= it.size || "-" %></td>
+        <td><%= it.quantity %></td>
+      </tr>
+    <% }) %>
+  </table>
+<% } %>
+
+
 </body>
 </html>
