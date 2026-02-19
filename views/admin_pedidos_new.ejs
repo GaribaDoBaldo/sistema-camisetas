@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Novo Pedido</title>
+</head>
+<body>
+  <h1>Novo Pedido</h1>
+  <p><a href="/admin/pedidos">← Voltar</a></p>
+
+  <% if (error) { %>
+    <p style="color:red;"><%= error %></p>
+  <% } %>
+
+  <form method="POST" action="/admin/pedidos">
+    <p>
+      <label>Cliente:</label><br/>
+      <input name="customer_name" required />
+    </p>
+
+    <p>
+      <label>Descrição (opcional):</label><br/>
+      <input name="description" />
+    </p>
+
+    <hr/>
+
+    <h3>Itens do pedido</h3>
+
+    <div id="items">
+      <div class="row" style="margin-bottom:10px;">
+        <select name="variant_id[]" required>
+          <option value="">-- Selecione a variação --</option>
+          <% variants.forEach(v => { %>
+            <option value="<%= v.id %>">
+              #<%= v.id %> - <%= v.product_name %> | SKU: <%= v.sku || "-" %> | <%= v.color || "-" %> <%= v.size || "-" %> | Estoque: <%= v.stock %>
+            </option>
+          <% }) %>
+        </select>
+
+        <input type="number" name="quantity[]" min="1" value="1" required style="width:70px;" />
+
+        <button type="button" onclick="removeRow(this)">Remover</button>
+      </div>
+    </div>
+
+    <button type="button" onclick="addRow()">+ Adicionar item</button>
+
+    <hr/>
+    <button type="submit">Criar Pedido</button>
+  </form>
+
+  <script>
+    function addRow() {
+      const items = document.getElementById("items");
+      const first = items.querySelector(".row");
+      const clone = first.cloneNode(true);
+      // limpa seleção e qty
+      clone.querySelector('select').value = "";
+      clone.querySelector('input[type="number"]').value = 1;
+      items.appendChild(clone);
+    }
+
+    function removeRow(btn) {
+      const items = document.getElementById("items");
+      if (items.querySelectorAll(".row").length === 1) return;
+      btn.closest(".row").remove();
+    }
+  </script>
+</body>
+</html>
