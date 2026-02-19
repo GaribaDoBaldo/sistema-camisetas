@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pedido #<%= order.id %></title>
+</head>
+<body>
+  <h1>Pedido #<%= order.id %></h1>
+
+  <p><a href="/admin/pedidos">← Voltar</a></p>
+
+  <p><b>Cliente:</b> <%= order.customer_name %></p>
+  <p><b>Descrição:</b> <%= order.description || "-" %></p>
+  <p><b>Status:</b> <%= order.status %></p>
+  <p><b>Etapa produção:</b> <%= order.production_stage || "-" %></p>
+  <p><b>Criado por:</b> <%= order.created_by_name || "-" %></p>
+  <p><b>Criado em:</b> <%= order.created_at %></p>
+  <p><b>Atualizado em:</b> <%= order.updated_at || "-" %></p>
+
+  <hr />
+
+  <h2>Atualizar status / produção</h2>
+
+  <form method="POST" action="/admin/pedidos/<%= order.id %>/atualizar">
+    <label>
+      Status:
+      <select name="status" required>
+        <option value="PENDING" <%= order.status === "PENDING" ? "selected" : "" %>>Pendente</option>
+        <option value="IN_PRODUCTION" <%= order.status === "IN_PRODUCTION" ? "selected" : "" %>>Em Produção</option>
+        <option value="DONE" <%= order.status === "DONE" ? "selected" : "" %>>Finalizado</option>
+      </select>
+    </label>
+
+    <br /><br />
+
+    <label>
+      Etapa (sub-status):
+      <select name="production_stage">
+        <option value="" <%= !order.production_stage ? "selected" : "" %>>— Nenhuma —</option>
+        <% stages.forEach(s => { %>
+          <option value="<%= s %>" <%= order.production_stage === s ? "selected" : "" %>><%= s %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <br /><br />
+
+    <button type="submit">Salvar</button>
+  </form>
+
+</body>
+</html>
