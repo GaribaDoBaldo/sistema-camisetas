@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pedido #<%= order.id %></title>
+</head>
+<body>
+  <h1>🧾 Pedido #<%= order.id %></h1>
+
+  <p><a href="/admin/pedidos">← Voltar</a></p>
+
+  <hr/>
+
+  <p><b>Cliente:</b> <%= order.customer_name %></p>
+  <p><b>Descrição:</b> <%= order.description || "-" %></p>
+  <p><b>Criado por:</b> <%= order.created_by_name || "-" %></p>
+  <p><b>Status:</b> <%= order.status %></p>
+  <p><b>Etapa (produção):</b> <%= order.production_stage || "-" %></p>
+  <p><b>Atualizado em:</b> <%= new Date(order.updated_at || order.created_at).toLocaleString("pt-BR") %></p>
+
+  <hr/>
+
+  <h2>Atualizar andamento</h2>
+
+  <form method="POST" action="/admin/pedidos/<%= order.id %>/status">
+    <div style="margin-bottom:10px;">
+      <label>Status principal:</label><br/>
+      <select name="status">
+        <option value="PENDING" <%= order.status === "PENDING" ? "selected" : "" %>>Pendente</option>
+        <option value="IN_PRODUCTION" <%= order.status === "IN_PRODUCTION" ? "selected" : "" %>>Produção</option>
+        <option value="DONE" <%= order.status === "DONE" ? "selected" : "" %>>Finalizado</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label>Etapa da produção (substatus):</label><br/>
+      <select name="production_stage">
+        <option value="" <%= !order.production_stage ? "selected" : "" %>>—</option>
+        <option value="Calandragem" <%= order.production_stage === "Calandragem" ? "selected" : "" %>>Calandragem</option>
+        <option value="Corte a Laser" <%= order.production_stage === "Corte a Laser" ? "selected" : "" %>>Corte a Laser</option>
+        <option value="Separação" <%= order.production_stage === "Separação" ? "selected" : "" %>>Separação</option>
+        <option value="Conferência" <%= order.production_stage === "Conferência" ? "selected" : "" %>>Conferência</option>
+        <option value="Ida para Costura" <%= order.production_stage === "Ida para Costura" ? "selected" : "" %>>Ida para Costura</option>
+        <option value="Retorno da Costura" <%= order.production_stage === "Retorno da Costura" ? "selected" : "" %>>Retorno da Costura</option>
+      </select>
+    </div>
+
+    <button type="submit">Salvar andamento</button>
+  </form>
+</body>
+</html>
