@@ -593,14 +593,23 @@ app.get("/admin/pedidos/novo", requireAuth, async (req, res) => {
   try {
     if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
 
-    res.render("admin_pedidos_novo", {
+    const variants = await pool.query(
+      `
+      SELECT v.id, v.sku, v.color, v.size, v.stock, p.name AS product_name
+      FROM product_variants v
+      JOIN products p ON p.id = v.product_id
+      ORDER BY p.name ASC, v.id ASC
+      `
+    );
+
+    res.render("admin_pedidos_new", {
       user: req.session.user,
+      variants: variants.rows,
       error: null,
-      values: { customer_name: "", description: "" },
     });
   } catch (err) {
     console.error(err);
-    res.status(500).send("Erro ao abrir formulário de pedido.");
+    res.status(500).send("Erro ao abrir novo pedido.");
   }
 });
 
@@ -608,47 +617,78 @@ app.get("/admin/pedidos/novo", requireAuth, async (req, res) => {
 // PEDIDOS (ADMIN) - CRIAR (POST)
 // =========================
 app.post("/admin/pedidos", requireAuth, async (req, res) => {
+  const client = await pool.connect();
   try {
     if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
 
     const { customer_name, description } = req.body;
+    const variantIds = req.body["variant_id[]"] || req.body.variant_id || [];
+    const quantities = req.body["quantity[]"] || req.body.quantity || [];
+
+    // normaliza para array
+    const vArr = Array.isArray(variantIds) ? variantIds : [variantIds];
+    const qArr = Array.isArray(quantities) ? quantities : [quantities];
 
     if (!customer_name || customer_name.trim().length < 2) {
-      return res.status(400).render("admin_pedidos_novo", {
-        user: req.session.user,
-        error: "Nome do cliente é obrigatório.",
-        values: { customer_name: customer_name || "", description: description || "" },
-      });
+      return res.status(400).send("Cliente inválido.");
     }
 
-    const insert = await pool.query(
-      `INSERT INTO orders (customer_name, description, status, created_by)
-       VALUES ($1, $2, 'PENDING', $3)
-       RETURNING id`,
+    if (vArr.length === 0) {
+      return res.status(400).send("Adicione pelo menos 1 item.");
+    }
+
+    // monta itens
+    const items = vArr.map((vId, i) => ({
+      variant_id: Number(vId),
+      quantity: Number(qArr[i] || 0),
+    })).filter(it => it.variant_id && Number.isInteger(it.quantity) && it.quantity > 0);
+
+    if (items.length === 0) {
+      return res.status(400).send("Itens inválidos.");
+    }
+
+    await client.query("BEGIN");
+
+    // cria pedido
+    const orderRes = await client.query(
+      `
+      INSERT INTO orders (customer_name, description, status, created_by)
+      VALUES ($1, $2, 'PENDING', $3)
+      RETURNING id
+      `,
       [customer_name.trim(), description?.trim() || null, req.session.user.id]
     );
 
-    const orderId = insert.rows[0].id;
+    const orderId = orderRes.rows[0].id;
 
-    // Auditoria ✅ (igual estoque)
+    // cria itens
+    for (const it of items) {
+      await client.query(
+        `INSERT INTO order_items (order_id, variant_id, quantity) VALUES ($1, $2, $3)`,
+        [orderId, it.variant_id, it.quantity]
+      );
+    }
+
+    // auditoria
     await auditLog({
       userId: req.session.user.id,
       action: "CREATE_ORDER",
       entityType: "order",
       entityId: orderId,
-      details: {
-        customer_name: customer_name.trim(),
-        description: description?.trim() || null,
-        status: "PENDING",
-      },
+      details: { customer_name: customer_name.trim(), items_count: items.length },
     });
 
-    return res.redirect("/admin/pedidos");
+    await client.query("COMMIT");
+    return res.redirect(`/admin/pedidos/${orderId}`);
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error(err);
     return res.status(500).send("Erro ao criar pedido.");
+  } finally {
+    client.release();
   }
 });
+
 // =========================
 // PEDIDOS (ADMIN) - DETALHE
 // =========================
@@ -669,6 +709,21 @@ app.get("/admin/pedidos/:id", requireAuth, async (req, res) => {
     if (result.rowCount === 0) return res.status(404).send("Pedido não encontrado.");
 
     const order = result.rows[0];
+    
+    const itemsRes = await pool.query(
+  `
+  SELECT oi.id, oi.quantity,
+         v.id AS variant_id, v.sku, v.color, v.size,
+         p.name AS product_name
+  FROM order_items oi
+  JOIN product_variants v ON v.id = oi.variant_id
+  JOIN products p ON p.id = v.product_id
+  WHERE oi.order_id = $1
+  ORDER BY oi.id ASC
+  `,
+  [orderId]
+);
+
 
     // lista de etapas (sub-status) que você pediu:
     const stages = [
@@ -679,6 +734,8 @@ app.get("/admin/pedidos/:id", requireAuth, async (req, res) => {
       "IDA_PARA_COSTURA",
       "RETORNO_DA_COSTURA",
     ];
+
+    items: itemsRes.rows
 
     res.render("admin_pedidos_show", { user: req.session.user, order, stages });
   } catch (err) {
