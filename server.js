@@ -668,11 +668,19 @@ app.get("/admin/pedidos/:id", requireAuth, async (req, res) => {
 
     if (result.rowCount === 0) return res.status(404).send("Pedido não encontrado.");
 
-    res.render("admin_pedidos_detalhe", {
-      user: req.session.user,
-      order: result.rows[0],
-      error: null,
-    });
+    const order = result.rows[0];
+
+    // lista de etapas (sub-status) que você pediu:
+    const stages = [
+      "CALANDRAGEM",
+      "CORTE_A_LASER",
+      "SEPARACAO",
+      "CONFERENCIA",
+      "IDA_PARA_COSTURA",
+      "RETORNO_DA_COSTURA",
+    ];
+
+    res.render("admin_pedidos_show", { user: req.session.user, order, stages });
   } catch (err) {
     console.error(err);
     res.status(500).send("Erro ao abrir pedido.");
@@ -680,19 +688,20 @@ app.get("/admin/pedidos/:id", requireAuth, async (req, res) => {
 });
 
 // =========================
-// PEDIDOS (ADMIN) - ATUALIZAR STATUS/ETAPA
+// PEDIDOS (ADMIN) - ATUALIZAR STATUS / ETAPA
 // =========================
-app.post("/admin/pedidos/:id/status", requireAuth, async (req, res) => {
+app.post("/admin/pedidos/:id/atualizar", requireAuth, async (req, res) => {
   try {
     if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
 
     const id = Number(req.params.id);
     const { status, production_stage } = req.body;
 
-    const allowedStatus = ["PENDING", "IN_PRODUCTION", "DONE"];
-    if (!allowedStatus.includes(status)) return res.status(400).send("Status inválido.");
+    // busca estado atual (pra auditoria e validação)
+    const current = await pool.query("SELECT status, production_stage FROM orders WHERE id = $1", [id]);
+    if (current.rowCount === 0) return res.status(404).send("Pedido não encontrado.");
 
-    const stage = (production_stage || "").trim() || null;
+    const before = current.rows[0];
 
     await pool.query(
       `UPDATE orders
@@ -700,19 +709,24 @@ app.post("/admin/pedidos/:id/status", requireAuth, async (req, res) => {
            production_stage = $2,
            updated_at = NOW()
        WHERE id = $3`,
-      [status, stage, id]
+      [status, production_stage || null, id]
     );
 
-    // auditoria
+    // auditoria (se você quiser manter tudo registrado)
     await auditLog({
       userId: req.session.user.id,
-      action: "UPDATE_ORDER_STATUS",
+      action: "UPDATE_ORDER",
       entityType: "order",
       entityId: id,
-      details: { status, production_stage: stage },
+      details: {
+        status_before: before.status,
+        status_after: status,
+        production_stage_before: before.production_stage,
+        production_stage_after: production_stage || null,
+      },
     });
 
-    return res.redirect(`/admin/pedidos/${id}`);
+    res.redirect(`/admin/pedidos/${id}`);
   } catch (err) {
     console.error(err);
     res.status(500).send("Erro ao atualizar pedido.");
