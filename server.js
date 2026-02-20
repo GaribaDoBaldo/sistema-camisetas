@@ -709,23 +709,21 @@ app.get("/admin/pedidos/:id", requireAuth, async (req, res) => {
     if (result.rowCount === 0) return res.status(404).send("Pedido não encontrado.");
 
     const order = result.rows[0];
-    
+
     const itemsRes = await pool.query(
-  `
-  SELECT oi.id, oi.quantity,
-         v.id AS variant_id, v.sku, v.color, v.size,
-         p.name AS product_name
-  FROM order_items oi
-  JOIN product_variants v ON v.id = oi.variant_id
-  JOIN products p ON p.id = v.product_id
-  WHERE oi.order_id = $1
-  ORDER BY oi.id ASC
-  `,
-  [orderId]
-);
+      `
+      SELECT oi.id, oi.quantity,
+             v.id AS variant_id, v.sku, v.color, v.size,
+             p.name AS product_name
+      FROM order_items oi
+      JOIN product_variants v ON v.id = oi.variant_id
+      JOIN products p ON p.id = v.product_id
+      WHERE oi.order_id = $1
+      ORDER BY oi.id ASC
+      `,
+      [id]
+    );
 
-
-    // lista de etapas (sub-status) que você pediu:
     const stages = [
       "CALANDRAGEM",
       "CORTE_A_LASER",
@@ -735,104 +733,123 @@ app.get("/admin/pedidos/:id", requireAuth, async (req, res) => {
       "RETORNO_DA_COSTURA",
     ];
 
-    items: itemsRes.rows
-
-    res.render("admin_pedidos_show", { user: req.session.user, order, stages });
+    return res.render("admin_pedidos_show", {
+      user: req.session.user,
+      order,
+      stages,
+      items: itemsRes.rows,
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).send("Erro ao abrir pedido.");
+    return res.status(500).send("Erro ao abrir pedido.");
   }
 });
 
 // =========================
-// PEDIDOS (ADMIN) - ATUALIZAR STATUS / ETAPA
+// PEDIDOS (ADMIN) - ATUALIZAR STATUS / ETAPA + BAIXA AUTOMÁTICA
 // =========================
 app.post("/admin/pedidos/:id/atualizar", requireAuth, async (req, res) => {
+  const client = await pool.connect();
   try {
     if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
 
     const id = Number(req.params.id);
-    const { status, production_stage } = req.body;
+    const newStatus = req.body.status; // PENDING | IN_PRODUCTION | DONE
+    const newStage = req.body.production_stage || null;
 
-    // busca estado atual (pra auditoria e validação)
-    const current = await pool.query("SELECT status, production_stage FROM orders WHERE id = $1", [id]);
-    if (current.rowCount === 0) return res.status(404).send("Pedido não encontrado.");
+    await client.query("BEGIN");
+
+    // trava o pedido
+    const current = await client.query(
+      "SELECT id, status, production_stage, stock_committed FROM orders WHERE id = $1 FOR UPDATE",
+      [id]
+    );
+    if (current.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).send("Pedido não encontrado.");
+    }
 
     const before = current.rows[0];
 
-    await pool.query(
+    // atualiza status/etapa
+    await client.query(
       `UPDATE orders
        SET status = $1,
            production_stage = $2,
            updated_at = NOW()
        WHERE id = $3`,
-      [status, production_stage || null, id]
-    );
-    // 1) pega pedido atual
-const orderRow = await client.query(
-  "SELECT id, status, stock_committed FROM orders WHERE id = $1 FOR UPDATE",
-  [orderId]
-);
-if (orderRow.rowCount === 0) {
-  await client.query("ROLLBACK");
-  return res.status(404).send("Pedido não encontrado.");
-}
-
-const currentStatus = orderRow.rows[0].status;
-const stockCommitted = orderRow.rows[0].stock_committed;
-
-// 2) se está entrando em produção agora, faz baixa
-const enteringProduction = (currentStatus !== "IN_PRODUCTION" && newStatus === "IN_PRODUCTION");
-
-if (enteringProduction && stockCommitted === false) {
-  const itemsRes = await client.query(
-    "SELECT variant_id, quantity FROM order_items WHERE order_id = $1",
-    [orderId]
-  );
-
-  // baixa item por item com trava e validação
-  for (const it of itemsRes.rows) {
-    const vRes = await client.query(
-      "SELECT id, stock FROM product_variants WHERE id = $1 FOR UPDATE",
-      [it.variant_id]
+      [newStatus, newStage, id]
     );
 
-    const currentStock = vRes.rows[0].stock;
-    const newStock = currentStock - Number(it.quantity);
+    // BAIXA AUTOMÁTICA: só quando ENTRA em produção e ainda não baixou
+    const enteringProduction =
+      before.status !== "IN_PRODUCTION" && newStatus === "IN_PRODUCTION";
 
-    if (newStock < 0) {
-      await client.query("ROLLBACK");
-      return res.status(400).send(`Estoque insuficiente na variação #${it.variant_id}.`);
+    if (enteringProduction && before.stock_committed === false) {
+      const itemsRes = await client.query(
+        "SELECT variant_id, quantity FROM order_items WHERE order_id = $1",
+        [id]
+      );
+
+      for (const it of itemsRes.rows) {
+        // trava a variação
+        const vRes = await client.query(
+          "SELECT id, stock FROM product_variants WHERE id = $1 FOR UPDATE",
+          [it.variant_id]
+        );
+
+        if (vRes.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return res.status(400).send(`Variação #${it.variant_id} não existe.`);
+        }
+
+        const currentStock = Number(vRes.rows[0].stock);
+        const qty = Number(it.quantity);
+        const newStock = currentStock - qty;
+
+        if (newStock < 0) {
+          await client.query("ROLLBACK");
+          return res
+            .status(400)
+            .send(`Estoque insuficiente na variação #${it.variant_id}.`);
+        }
+
+        // registra movimento
+        await client.query(
+          `INSERT INTO stock_movements (variant_id, type, quantity, reason, created_by)
+           VALUES ($1, 'OUT', $2, $3, $4)`,
+          [it.variant_id, qty, `Pedido #${id} (produção)`, req.session.user.id]
+        );
+
+        // atualiza estoque
+        await client.query(
+          "UPDATE product_variants SET stock = $1, updated_at = NOW() WHERE id = $2",
+          [newStock, it.variant_id]
+        );
+
+        // auditoria
+        await auditLog({
+          userId: req.session.user.id,
+          action: "ORDER_STOCK_COMMIT",
+          entityType: "order",
+          entityId: id,
+          details: {
+            variant_id: it.variant_id,
+            quantity: qty,
+            stock_before: currentStock,
+            stock_after: newStock,
+          },
+        });
+      }
+
+      // marca que já baixou estoque
+      await client.query(
+        "UPDATE orders SET stock_committed = TRUE WHERE id = $1",
+        [id]
+      );
     }
 
-    // histórico estoque (OUT)
-    await client.query(
-      `INSERT INTO stock_movements (variant_id, type, quantity, reason, created_by)
-       VALUES ($1, 'OUT', $2, $3, $4)`,
-      [it.variant_id, Number(it.quantity), `Pedido #${orderId} (produção)`, req.session.user.id]
-    );
-
-    // atualiza estoque
-    await client.query(
-      "UPDATE product_variants SET stock = $1, updated_at = NOW() WHERE id = $2",
-      [newStock, it.variant_id]
-    );
-
-    // auditoria
-    await auditLog({
-      userId: req.session.user.id,
-      action: "ORDER_STOCK_COMMIT",
-      entityType: "order",
-      entityId: Number(orderId),
-      details: { variant_id: it.variant_id, quantity: Number(it.quantity), stock_before: currentStock, stock_after: newStock },
-    });
-  }
-
-  // marca como já baixado
-  await client.query("UPDATE orders SET stock_committed = TRUE WHERE id = $1", [orderId]);
-}
-
-    // auditoria (se você quiser manter tudo registrado)
+    // auditoria do update
     await auditLog({
       userId: req.session.user.id,
       action: "UPDATE_ORDER",
@@ -840,16 +857,20 @@ if (enteringProduction && stockCommitted === false) {
       entityId: id,
       details: {
         status_before: before.status,
-        status_after: status,
+        status_after: newStatus,
         production_stage_before: before.production_stage,
-        production_stage_after: production_stage || null,
+        production_stage_after: newStage,
       },
     });
 
-    res.redirect(`/admin/pedidos/${id}`);
+    await client.query("COMMIT");
+    return res.redirect(`/admin/pedidos/${id}`);
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error(err);
-    res.status(500).send("Erro ao atualizar pedido.");
+    return res.status(500).send("Erro ao atualizar pedido.");
+  } finally {
+    client.release();
   }
 });
 
