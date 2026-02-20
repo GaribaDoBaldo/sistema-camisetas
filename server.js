@@ -874,6 +874,44 @@ app.post("/admin/pedidos/:id/atualizar", requireAuth, async (req, res) => {
   }
 });
 
+// =========================
+// PRODUÇÃO (ADMIN) - LISTA (kanban simples)
+// =========================
+app.get("/admin/producao", requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const result = await pool.query(
+      `
+      SELECT o.id, o.customer_name, o.description, o.status, o.production_stage, o.updated_at, o.created_at,
+             u.name AS created_by_name
+      FROM orders o
+      LEFT JOIN users u ON u.id = o.created_by
+      WHERE o.status = 'IN_PRODUCTION'
+      ORDER BY o.updated_at DESC NULLS LAST, o.id DESC
+      `
+    );
+
+    const stages = [
+      "CALANDRAGEM",
+      "CORTE_A_LASER",
+      "SEPARACAO",
+      "CONFERENCIA",
+      "IDA_PARA_COSTURA",
+      "RETORNO_DA_COSTURA",
+    ];
+
+    res.render("admin_producao_index", {
+      user: req.session.user,
+      orders: result.rows,
+      stages,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao carregar produção.");
+  }
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
