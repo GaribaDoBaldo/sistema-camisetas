@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Produção</title>
+</head>
+<body>
+  <h1>Produção</h1>
+
+  <p><a href="/dashboard">← Voltar</a></p>
+
+  <% if (!orders || orders.length === 0) { %>
+    <p>Nenhum pedido em produção.</p>
+  <% } else { %>
+    <table border="1" cellpadding="6">
+      <tr>
+        <th>ID</th>
+        <th>Cliente</th>
+        <th>Status</th>
+        <th>Etapa</th>
+        <th>Atualizado</th>
+        <th>Ações</th>
+      </tr>
+
+      <% orders.forEach(o => { %>
+        <tr>
+          <td><a href="/admin/pedidos/<%= o.id %>"><%= o.id %></a></td>
+          <td><%= o.customer_name %></td>
+          <td><%= o.status %></td>
+          <td><%= o.production_stage || "-" %></td>
+          <td><%= o.updated_at || o.created_at %></td>
+          <td>
+            <form method="POST" action="/admin/pedidos/<%= o.id %>/atualizar" style="display:inline;">
+              <input type="hidden" name="status" value="IN_PRODUCTION" />
+              <select name="production_stage">
+                <option value="" <%= !o.production_stage ? "selected" : "" %>>— Etapa —</option>
+                <% stages.forEach(s => { %>
+                  <option value="<%= s %>" <%= o.production_stage === s ? "selected" : "" %>><%= s %></option>
+                <% }) %>
+              </select>
+              <button type="submit">Salvar</button>
+            </form>
+
+            <a href="/admin/pedidos/<%= o.id %>">Abrir</a>
+          </td>
+        </tr>
+      <% }) %>
+    </table>
+  <% } %>
+</body>
+</html>
