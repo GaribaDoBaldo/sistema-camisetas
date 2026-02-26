@@ -753,46 +753,51 @@ app.post("/admin/pedidos/:id/atualizar", requireAuth, async (req, res) => {
   try {
     if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
 
-    const id = Number(req.params.id);
-    const newStatus = req.body.status; // PENDING | IN_PRODUCTION | DONE
+    const orderId = Number(req.params.id);
+    const newStatus = req.body.status;
     const newStage = req.body.production_stage || null;
 
     await client.query("BEGIN");
 
-    // trava o pedido
-    const current = await client.query(
+    // 1) trava o pedido (FOR UPDATE) pra ninguém mexer junto
+    const orderRow = await client.query(
       "SELECT id, status, production_stage, stock_committed FROM orders WHERE id = $1 FOR UPDATE",
-      [id]
+      [orderId]
     );
-    if (current.rowCount === 0) {
+    if (orderRow.rowCount === 0) {
       await client.query("ROLLBACK");
       return res.status(404).send("Pedido não encontrado.");
     }
 
-    const before = current.rows[0];
+    const before = orderRow.rows[0];
 
-    // atualiza status/etapa
+    // 2) atualiza status/etapa
     await client.query(
       `UPDATE orders
        SET status = $1,
            production_stage = $2,
            updated_at = NOW()
        WHERE id = $3`,
-      [newStatus, newStage, id]
+      [newStatus, newStage, orderId]
     );
 
-    // BAIXA AUTOMÁTICA: só quando ENTRA em produção e ainda não baixou
-    const enteringProduction =
-      before.status !== "IN_PRODUCTION" && newStatus === "IN_PRODUCTION";
+    // 3) BAIXA AUTOMÁTICA: só quando entra em produção pela 1ª vez
+    const enteringProduction = (before.status !== "IN_PRODUCTION" && newStatus === "IN_PRODUCTION");
 
     if (enteringProduction && before.stock_committed === false) {
+      // pega itens do pedido
       const itemsRes = await client.query(
         "SELECT variant_id, quantity FROM order_items WHERE order_id = $1",
-        [id]
+        [orderId]
       );
 
+      if (itemsRes.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).send("Este pedido não tem itens para baixar estoque.");
+      }
+
+      // baixa item por item com trava na variação
       for (const it of itemsRes.rows) {
-        // trava a variação
         const vRes = await client.query(
           "SELECT id, stock FROM product_variants WHERE id = $1 FOR UPDATE",
           [it.variant_id]
@@ -800,61 +805,70 @@ app.post("/admin/pedidos/:id/atualizar", requireAuth, async (req, res) => {
 
         if (vRes.rowCount === 0) {
           await client.query("ROLLBACK");
-          return res.status(400).send(`Variação #${it.variant_id} não existe.`);
+          return res.status(400).send(`Variação #${it.variant_id} não encontrada.`);
         }
 
         const currentStock = Number(vRes.rows[0].stock);
         const qty = Number(it.quantity);
-        const newStock = currentStock - qty;
+        const newStockVal = currentStock - qty;
 
-        if (newStock < 0) {
+        if (newStockVal < 0) {
           await client.query("ROLLBACK");
           return res
             .status(400)
-            .send(`Estoque insuficiente na variação #${it.variant_id}.`);
+            .send(`Estoque insuficiente na variação #${it.variant_id}. Estoque atual: ${currentStock}, necessário: ${qty}`);
         }
 
-        // registra movimento
+        // registra histórico estoque (OUT)
         await client.query(
           `INSERT INTO stock_movements (variant_id, type, quantity, reason, created_by)
            VALUES ($1, 'OUT', $2, $3, $4)`,
-          [it.variant_id, qty, `Pedido #${id} (produção)`, req.session.user.id]
+          [it.variant_id, qty, `Pedido #${orderId} (entrada em produção)`, req.session.user.id]
         );
 
         // atualiza estoque
         await client.query(
           "UPDATE product_variants SET stock = $1, updated_at = NOW() WHERE id = $2",
-          [newStock, it.variant_id]
+          [newStockVal, it.variant_id]
         );
 
-        // auditoria
+        // auditoria por item (opcional, mas útil)
         await auditLog({
           userId: req.session.user.id,
-          action: "ORDER_STOCK_COMMIT",
+          action: "ORDER_STOCK_COMMIT_ITEM",
           entityType: "order",
-          entityId: id,
+          entityId: orderId,
           details: {
-            variant_id: it.variant_id,
+            variant_id: Number(it.variant_id),
             quantity: qty,
             stock_before: currentStock,
-            stock_after: newStock,
+            stock_after: newStockVal,
           },
         });
       }
 
-      // marca que já baixou estoque
+      // marca como “já baixado”
       await client.query(
         "UPDATE orders SET stock_committed = TRUE WHERE id = $1",
-        [id]
+        [orderId]
       );
+
+      // auditoria geral
+      await auditLog({
+        userId: req.session.user.id,
+        action: "ORDER_STOCK_COMMIT",
+        entityType: "order",
+        entityId: orderId,
+        details: { items_count: itemsRes.rowCount },
+      });
     }
 
-    // auditoria do update
+    // 4) auditoria da mudança de status/etapa
     await auditLog({
       userId: req.session.user.id,
       action: "UPDATE_ORDER",
       entityType: "order",
-      entityId: id,
+      entityId: orderId,
       details: {
         status_before: before.status,
         status_after: newStatus,
@@ -864,7 +878,7 @@ app.post("/admin/pedidos/:id/atualizar", requireAuth, async (req, res) => {
     });
 
     await client.query("COMMIT");
-    return res.redirect(`/admin/pedidos/${id}`);
+    return res.redirect(`/admin/pedidos/${orderId}`);
   } catch (err) {
     await client.query("ROLLBACK");
     console.error(err);
