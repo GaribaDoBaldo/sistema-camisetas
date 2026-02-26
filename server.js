@@ -925,6 +925,77 @@ app.get("/admin/producao", requireAuth, async (req, res) => {
     res.status(500).send("Erro ao carregar produção.");
   }
 });
+// =========================
+// PRODUÇÃO (ADMIN) - AVANÇAR ETAPA (1 clique)
+// =========================
+app.post("/admin/producao/:id/avancar", requireAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    if (req.session.user.role !== "admin") return res.status(403).send("Acesso negado.");
+
+    const orderId = Number(req.params.id);
+
+    const stages = [
+      "CALANDRAGEM",
+      "CORTE_A_LASER",
+      "SEPARACAO",
+      "CONFERENCIA",
+      "IDA_PARA_COSTURA",
+      "RETORNO_DA_COSTURA",
+    ];
+
+    await client.query("BEGIN");
+
+    const orderRes = await client.query(
+      "SELECT id, status, production_stage FROM orders WHERE id = $1 FOR UPDATE",
+      [orderId]
+    );
+    if (orderRes.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).send("Pedido não encontrado.");
+    }
+
+    const order = orderRes.rows[0];
+
+    if (order.status !== "IN_PRODUCTION") {
+      await client.query("ROLLBACK");
+      return res.status(400).send("Pedido não está em produção.");
+    }
+
+    const currentStage = order.production_stage;
+    let nextStage = stages[0];
+
+    if (currentStage && stages.includes(currentStage)) {
+      const idx = stages.indexOf(currentStage);
+      nextStage = stages[Math.min(idx + 1, stages.length - 1)];
+    }
+
+    await client.query(
+      `UPDATE orders
+       SET production_stage = $1,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [nextStage, orderId]
+    );
+
+    await auditLog({
+      userId: req.session.user.id,
+      action: "ADVANCE_PRODUCTION_STAGE",
+      entityType: "order",
+      entityId: orderId,
+      details: { from: currentStage || null, to: nextStage },
+    });
+
+    await client.query("COMMIT");
+    return res.redirect("/admin/producao");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    return res.status(500).send("Erro ao avançar etapa.");
+  } finally {
+    client.release();
+  }
+});
 
 
 const PORT = process.env.PORT || 3000;
