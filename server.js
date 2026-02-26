@@ -195,6 +195,10 @@ app.get("/admin/estoque", requireAuth, async (req, res) => {
     const q = (req.query.q || "").trim();
     const like = `%${q}%`;
     const low = req.query.low === "1";
+    const params = new URLSearchParams();
+if (q) params.set("q", q);
+if (low) params.set("low", "1");
+const returnTo = "/admin/estoque" + (params.toString() ? `?${params.toString()}` : "");
 
     const productsResult = await pool.query(
       `
@@ -219,7 +223,7 @@ app.get("/admin/estoque", requireAuth, async (req, res) => {
     OR v.color ILIKE $2
     OR v.size ILIKE $2
   )
-  AND ($3 = false OR v.stock <= v.min_stock)
+  AND ($3 = false OR COALESCE(v.stock,0) <= COALESCE(v.min_stock,0))
   ORDER BY v.id DESC
   `,
   [q, like, low]
@@ -231,6 +235,7 @@ app.get("/admin/estoque", requireAuth, async (req, res) => {
   variants: variantsResult.rows,
   q,
   low,
+  returnTo,
 });
   } catch (err) {
     console.error(err);
